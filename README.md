@@ -1,4 +1,4 @@
-# Besu Ethereum Client
+# OP-Besu Ethereum Client Fork
  [![CircleCI](https://circleci.com/gh/hyperledger/besu/tree/main.svg?style=svg)](https://circleci.com/gh/hyperledger/besu/tree/main)
  [![Documentation](https://img.shields.io/github/actions/workflow/status/hyperledger/besu-docs/publish-main-docs.yml?branch=main&label=docs)](https://github.com/hyperledger/besu-docs/actions/workflows/publish-main-docs.yml)
  [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/3174/badge)](https://bestpractices.coreinfrastructure.org/projects/3174)
@@ -6,9 +6,9 @@
  [![Discord](https://img.shields.io/discord/905194001349627914?logo=Hyperledger&style=plastic)](https://discord.com/invite/hyperledger)
  [![Twitter Follow](https://img.shields.io/twitter/follow/HyperledgerBesu)](https://twitter.com/HyperledgerBesu)
 
-[Download](https://github.com/hyperledger/besu/releases)
+[Download](https://github.com/consensys/op-besu/releases)
 
-Besu is an Apache 2.0 licensed, MainNet compatible, Ethereum client written in Java.
+Besu is an Apache 2.0 licensed, Optimism compatible, Ethereum client written in Java. The intent of this repository is to make modifications to the upstream Besu repo to support Optimism L2.  The longer term goal is for the changes in this fork to be incorporated into a plugin that can be used with the mainline besu client.
 
 ## Useful Links
 
