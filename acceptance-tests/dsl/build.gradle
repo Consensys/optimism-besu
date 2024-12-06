@@ -1,0 +1,47 @@
+dependencies {
+  implementation project(':besu')
+  implementation project(':config')
+  implementation project(':consensus:clique')
+  implementation project(':consensus:common')
+  implementation project(':consensus:ibft')
+  implementation project(':consensus:qbft')
+  implementation project(':crypto:services')
+  implementation project(':enclave')
+  implementation project(':ethereum:api')
+  implementation project(':ethereum:blockcreation')
+  implementation project(':ethereum:core')
+  implementation project(path: ':ethereum:core', configuration: 'testSupportArtifacts')
+  implementation project(':ethereum:eth')
+  implementation project(':ethereum:p2p')
+  implementation project(':evm')
+  implementation project(':datatypes')
+  implementation project(':ethereum:permissioning')
+  implementation project(':ethereum:rlp')
+  implementation project(':metrics:core')
+  implementation project(':plugin-api')
+  implementation project(':plugins:rocksdb')
+  implementation project(':services:kvstore')
+  implementation project(':testutil')
+  implementation project(':util')
+
+  implementation 'com.google.guava:guava'
+  implementation 'com.google.dagger:dagger'
+  annotationProcessor 'com.google.dagger:dagger-compiler'
+  implementation 'com.squareup.okhttp3:okhttp'
+  implementation 'info.picocli:picocli'
+  implementation 'io.reactivex.rxjava2:rxjava'
+  implementation 'io.vertx:vertx-core'
+  implementation 'io.opentelemetry:opentelemetry-api'
+  implementation 'io.tmio:tuweni-bytes'
+  implementation 'io.tmio:tuweni-io'
+  implementation 'io.tmio:tuweni-units'
+  implementation 'org.assertj:assertj-core'
+  implementation 'org.awaitility:awaitility'
+  implementation 'org.java-websocket:Java-WebSocket'
+  implementation 'org.web3j:abi'
+  implementation 'org.web3j:besu'
+  implementation 'org.web3j:crypto'
+  implementation 'org.wiremock:wiremock'
+
+  implementation 'org.junit.jupiter:junit-jupiter'
+}

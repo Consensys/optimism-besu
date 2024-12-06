@@ -1,0 +1,47 @@
+{
+  "request": {
+    "id": 28,
+    "jsonrpc": "2.0",
+    "method": "eth_feeHistory",
+    "params": [
+      "0x2",
+      "latest",
+      [
+        0.0,
+        100.0,
+        4.0
+      ]
+    ]
+  },
+  "response": {
+    "jsonrpc": "2.0",
+    "id": 28,
+    "result": {
+      "oldestBlock": "0x21",
+      "baseFeePerGas": [
+        "0x3b9aca00",
+        "0x3437004a",
+        "0x2dbc88c1"
+      ],
+      "baseFeePerBlobGas" : [ "0x0", "0x1", "0x1" ],
+      "gasUsedRatio": [
+        0.004079142040086682,
+        0.003713085594819442
+      ],
+      "blobGasUsedRatio" : [ 0.0, 0.3333333333333333 ],
+      "reward": [
+        [
+          "0x3b9aca00",
+          "0x3b9aca00",
+          "0x3b9aca00"
+        ],
+        [
+          "0x3b9aca00",
+          "0x3b9aca00",
+          "0x3b9aca00"
+        ]
+      ]
+    }
+  },
+  "statusCode": 200
+}
