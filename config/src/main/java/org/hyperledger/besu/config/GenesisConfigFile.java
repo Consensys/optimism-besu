@@ -38,11 +38,11 @@ public class GenesisConfigFile {
   /** The constant BASEFEE_AT_GENESIS_DEFAULT_VALUE. */
   public static final Wei BASEFEE_AT_GENESIS_DEFAULT_VALUE = Wei.of(1_000_000_000L);
 
-  private final GenesisReader loader;
-  private final ObjectNode genesisRoot;
-  private Map<String, String> overrides;
+  final GenesisReader loader;
+  protected final ObjectNode genesisRoot;
+  protected Map<String, String> overrides;
 
-  private GenesisConfigFile(final GenesisReader loader) {
+  GenesisConfigFile(final GenesisReader loader) {
     this.loader = loader;
     this.genesisRoot = loader.getRoot();
   }
