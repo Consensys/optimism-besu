@@ -50,12 +50,12 @@ import org.apache.tuweni.bytes.Bytes;
 import org.apache.tuweni.bytes.Bytes32;
 import org.apache.tuweni.units.bigints.UInt64;
 
-public final class GenesisState {
+public class GenesisState {
 
-  private final Block block;
-  private final GenesisConfigFile genesisConfigFile;
+  protected final Block block;
+  protected final GenesisConfigFile genesisConfigFile;
 
-  private GenesisState(final Block block, final GenesisConfigFile genesisConfigFile) {
+  GenesisState(final Block block, final GenesisConfigFile genesisConfigFile) {
     this.block = block;
     this.genesisConfigFile = genesisConfigFile;
   }
@@ -142,7 +142,7 @@ public final class GenesisState {
     return new GenesisState(block, genesisConfigFile);
   }
 
-  private static BlockBody buildBody(final GenesisConfigFile config) {
+  static BlockBody buildBody(final GenesisConfigFile config) {
     final Optional<List<Withdrawal>> withdrawals =
         isShanghaiAtGenesis(config) ? Optional.of(emptyList()) : Optional.empty();
 
@@ -179,7 +179,7 @@ public final class GenesisState {
     target.persist(rootHeader);
   }
 
-  private static Hash calculateGenesisStateRoot(
+  static Hash calculateGenesisStateRoot(
       final DataStorageConfiguration dataStorageConfiguration,
       final GenesisConfigFile genesisConfigFile) {
     try (var worldState = createGenesisWorldState(dataStorageConfiguration)) {
@@ -190,7 +190,7 @@ public final class GenesisState {
     }
   }
 
-  private static BlockHeader buildHeader(
+  static BlockHeader buildHeader(
       final GenesisConfigFile genesis,
       final Hash genesisRootHash,
       final ProtocolSchedule protocolSchedule) {

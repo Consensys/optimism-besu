@@ -55,9 +55,9 @@ public class JsonGenesisConfigOptions implements GenesisConfigOptions {
   private static final String CONSOLIDATION_REQUEST_CONTRACT_ADDRESS_KEY =
       "consolidationrequestcontractaddress";
 
-  private final ObjectNode configRoot;
-  private final Map<String, String> configOverrides = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
-  private final TransitionsConfigOptions transitions;
+  protected final ObjectNode configRoot;
+  protected final Map<String, String> configOverrides = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+  protected final TransitionsConfigOptions transitions;
 
   /**
    * From json object json genesis config options.
@@ -65,7 +65,7 @@ public class JsonGenesisConfigOptions implements GenesisConfigOptions {
    * @param configRoot the config root
    * @return the json genesis config options
    */
-  public static JsonGenesisConfigOptions fromJsonObject(final ObjectNode configRoot) {
+  public static JsonOptimismConfigOptions fromJsonObject(final ObjectNode configRoot) {
     return fromJsonObjectWithOverrides(configRoot, emptyMap());
   }
 
@@ -76,11 +76,11 @@ public class JsonGenesisConfigOptions implements GenesisConfigOptions {
    * @param configOverrides the config overrides
    * @return the json genesis config options
    */
-  static JsonGenesisConfigOptions fromJsonObjectWithOverrides(
+  static JsonOptimismConfigOptions fromJsonObjectWithOverrides(
       final ObjectNode configRoot, final Map<String, String> configOverrides) {
     final TransitionsConfigOptions transitionsConfigOptions;
     transitionsConfigOptions = loadTransitionsFrom(configRoot);
-    return new JsonGenesisConfigOptions(configRoot, configOverrides, transitionsConfigOptions);
+    return new JsonOptimismConfigOptions(configRoot, configOverrides, transitionsConfigOptions);
   }
 
   private static TransitionsConfigOptions loadTransitionsFrom(final ObjectNode parentNode) {
