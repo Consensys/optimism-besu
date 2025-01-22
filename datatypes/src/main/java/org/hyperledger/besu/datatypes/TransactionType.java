@@ -28,6 +28,8 @@ public enum TransactionType {
   EIP1559(0x02),
   /** Blob transaction type. */
   BLOB(0x03),
+  /** Optimism Deposit transaction type. */
+  OPTIMISM_DEPOSIT(0x7e),
   /** Eip7702 transaction type. */
   DELEGATE_CODE(0x04);
 
@@ -86,6 +88,7 @@ public enum TransactionType {
               TransactionType.ACCESS_LIST,
               TransactionType.EIP1559,
               TransactionType.BLOB,
+              TransactionType.OPTIMISM_DEPOSIT,
               TransactionType.DELEGATE_CODE
             })
         .filter(transactionType -> transactionType.typeValue == serializedTypeValue)

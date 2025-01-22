@@ -42,7 +42,9 @@ public class TransactionDecoder {
           TransactionType.BLOB,
           BlobTransactionDecoder::decode,
           TransactionType.DELEGATE_CODE,
-          CodeDelegationTransactionDecoder::decode);
+          CodeDelegationTransactionDecoder::decode,
+          TransactionType.OPTIMISM_DEPOSIT,
+          OptimismDepositTransactionDecoder::decode);
 
   private static final ImmutableMap<TransactionType, Decoder> POOLED_TRANSACTION_DECODERS =
       ImmutableMap.of(TransactionType.BLOB, BlobPooledTransactionDecoder::decode);
