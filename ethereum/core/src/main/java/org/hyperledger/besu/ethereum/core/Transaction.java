@@ -163,7 +163,7 @@ public class Transaction
    *     <p>The {@code chainId} must be greater than 0 to be applied to a specific chain; otherwise
    *     it will default to any chain.
    */
-  private Transaction(
+  Transaction(
       final boolean forCopy,
       final TransactionType transactionType,
       final long nonce,
@@ -721,6 +721,7 @@ public class Transaction
     }
     final Bytes preimage =
         switch (transactionType) {
+          case OPTIMISM_DEPOSIT -> Bytes.EMPTY;
           case FRONTIER -> frontierPreimage(nonce, gasPrice, gasLimit, to, value, payload, chainId);
           case EIP1559 ->
               eip1559Preimage(
