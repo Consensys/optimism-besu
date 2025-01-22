@@ -93,13 +93,13 @@ public abstract class MainnetProtocolSpecs {
   private static final Address RIPEMD160_PRECOMPILE =
       Address.fromHexString("0x0000000000000000000000000000000000000003");
 
-  private static final Supplier<SignatureAlgorithm> SIGNATURE_ALGORITHM =
+  static final Supplier<SignatureAlgorithm> SIGNATURE_ALGORITHM =
       Suppliers.memoize(SignatureAlgorithmFactory::getInstance);
 
   // A consensus bug at Ethereum mainnet transaction 0xcf416c53
   // deleted an empty account even when the message execution scope
   // failed, but the transaction itself succeeded.
-  private static final Set<Address> SPURIOUS_DRAGON_FORCE_DELETE_WHEN_EMPTY_ADDRESSES =
+  static final Set<Address> SPURIOUS_DRAGON_FORCE_DELETE_WHEN_EMPTY_ADDRESSES =
       Set.of(RIPEMD160_PRECOMPILE);
 
   private static final Wei FRONTIER_BLOCK_REWARD = Wei.fromEth(5);

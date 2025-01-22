@@ -25,13 +25,13 @@ import java.util.OptionalLong;
 
 public class MainnetProtocolSpecFactory {
 
-  private final Optional<BigInteger> chainId;
-  private final boolean isRevertReasonEnabled;
-  private final OptionalLong ecip1017EraRounds;
-  private final EvmConfiguration evmConfiguration;
-  private final MiningConfiguration miningConfiguration;
-  private final boolean isParallelTxProcessingEnabled;
-  private final MetricsSystem metricsSystem;
+  protected final Optional<BigInteger> chainId;
+  protected final boolean isRevertReasonEnabled;
+  protected final OptionalLong ecip1017EraRounds;
+  protected final EvmConfiguration evmConfiguration;
+  protected final MiningConfiguration miningConfiguration;
+  protected final boolean isParallelTxProcessingEnabled;
+  protected final MetricsSystem metricsSystem;
 
   public MainnetProtocolSpecFactory(
       final Optional<BigInteger> chainId,
