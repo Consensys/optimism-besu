@@ -22,7 +22,7 @@ public class OptimismGenesisState extends GenesisState {
    * @param protocolSchedule A protocol Schedule associated with
    * @return A new {@link GenesisState}.
    */
-  public static GenesisState fromConfig(
+  public static OptimismGenesisState fromConfig(
       final DataStorageConfiguration dataStorageConfiguration,
       final OpGenesisConfigFile genesisConfigFile,
       final ProtocolSchedule protocolSchedule) {
