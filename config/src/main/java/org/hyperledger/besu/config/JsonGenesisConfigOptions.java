@@ -65,7 +65,7 @@ public class JsonGenesisConfigOptions implements GenesisConfigOptions {
    * @param configRoot the config root
    * @return the json genesis config options
    */
-  public static JsonOptimismConfigOptions fromJsonObject(final ObjectNode configRoot) {
+  public static JsonOptimismGenesisConfigOptions fromJsonObject(final ObjectNode configRoot) {
     return fromJsonObjectWithOverrides(configRoot, emptyMap());
   }
 
@@ -76,11 +76,11 @@ public class JsonGenesisConfigOptions implements GenesisConfigOptions {
    * @param configOverrides the config overrides
    * @return the json genesis config options
    */
-  static JsonOptimismConfigOptions fromJsonObjectWithOverrides(
+  static JsonOptimismGenesisConfigOptions fromJsonObjectWithOverrides(
       final ObjectNode configRoot, final Map<String, String> configOverrides) {
     final TransitionsConfigOptions transitionsConfigOptions;
     transitionsConfigOptions = loadTransitionsFrom(configRoot);
-    return new JsonOptimismConfigOptions(configRoot, configOverrides, transitionsConfigOptions);
+    return new JsonOptimismGenesisConfigOptions(configRoot, configOverrides, transitionsConfigOptions);
   }
 
   private static TransitionsConfigOptions loadTransitionsFrom(final ObjectNode parentNode) {
@@ -540,7 +540,7 @@ public class JsonGenesisConfigOptions implements GenesisConfigOptions {
     return builder.build();
   }
 
-  private OptionalLong getOptionalLong(final String key) {
+  protected OptionalLong getOptionalLong(final String key) {
     if (configOverrides.containsKey(key)) {
       final String value = configOverrides.get(key);
       return value == null || value.isEmpty()
@@ -551,7 +551,7 @@ public class JsonGenesisConfigOptions implements GenesisConfigOptions {
     }
   }
 
-  private OptionalInt getOptionalInt(final String key) {
+  protected OptionalInt getOptionalInt(final String key) {
     if (configOverrides.containsKey(key)) {
       final String value = configOverrides.get(key);
       return value == null || value.isEmpty()
@@ -562,7 +562,7 @@ public class JsonGenesisConfigOptions implements GenesisConfigOptions {
     }
   }
 
-  private Optional<BigInteger> getOptionalBigInteger(final String key) {
+  protected Optional<BigInteger> getOptionalBigInteger(final String key) {
     if (configOverrides.containsKey(key)) {
       final String value = configOverrides.get(key);
       return value == null || value.isEmpty()
@@ -573,7 +573,7 @@ public class JsonGenesisConfigOptions implements GenesisConfigOptions {
     }
   }
 
-  private Optional<Boolean> getOptionalBoolean(final String key) {
+  protected Optional<Boolean> getOptionalBoolean(final String key) {
     if (configOverrides.containsKey(key)) {
       final String value = configOverrides.get(key);
       return value == null || value.isEmpty()
@@ -584,7 +584,7 @@ public class JsonGenesisConfigOptions implements GenesisConfigOptions {
     }
   }
 
-  private Optional<Hash> getOptionalHash(final String key) {
+  protected Optional<Hash> getOptionalHash(final String key) {
     if (configOverrides.containsKey(key)) {
       final String overrideHash = configOverrides.get(key);
       return Optional.of(Hash.fromHexString(overrideHash));

@@ -8,7 +8,7 @@ import java.util.Map;
 
 public class OpGenesisConfigFile extends GenesisConfigFile {
 
-    OpGenesisConfigFile(GenesisReader loader) {
+    OpGenesisConfigFile(final GenesisReader loader) {
         super(loader);
     }
 
@@ -86,11 +86,11 @@ public class OpGenesisConfigFile extends GenesisConfigFile {
      * @return the config options
      */
     @Override
-    public JsonOptimismConfigOptions getConfigOptions() {
+    public JsonOptimismGenesisConfigOptions getConfigOptions() {
         final ObjectNode config = loader.getConfig();
         // are there any overrides to apply?
         if (this.overrides == null) {
-            return JsonOptimismConfigOptions.fromJsonObject(config);
+            return JsonOptimismGenesisConfigOptions.fromJsonObject(config);
         }
         // otherwise apply overrides
         Map<String, String> overridesRef = this.overrides;
@@ -103,6 +103,6 @@ public class OpGenesisConfigFile extends GenesisConfigFile {
             overridesRef.put("baseFeePerGas", optBaseFee.get().toShortHexString());
         }
 
-        return JsonOptimismConfigOptions.fromJsonObjectWithOverrides(config, overridesRef);
+        return JsonOptimismGenesisConfigOptions.fromJsonObjectWithOverrides(config, overridesRef);
     }
 }

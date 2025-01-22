@@ -116,4 +116,15 @@ public interface OptimismGenesisConfigOptions extends GenesisConfigOptions {
    * @return the boolean
    */
   boolean isGranite(long headTime);
+
+  /**
+   * Gets optimism config options
+   *
+   * @return the optimism config options.
+   */
+  OptimismConfigOptions getOptimismConfigOptions();
+
+  OptionalLong getInteropTime();
+
+  boolean isInterop(long headTime);
 }

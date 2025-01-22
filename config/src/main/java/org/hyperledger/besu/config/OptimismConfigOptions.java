@@ -1,5 +1,6 @@
 package org.hyperledger.besu.config;
 
+import java.util.Map;
 import java.util.OptionalLong;
 
 public interface OptimismConfigOptions {
@@ -24,4 +25,11 @@ public interface OptimismConfigOptions {
    * @return the EIP1559 denominatorCanyon
    */
   OptionalLong getEIP1559DenominatorCanyon();
+
+  /**
+   * As map.
+   *
+   * @return the map
+   */
+  Map<String, Object> asMap();
 }
