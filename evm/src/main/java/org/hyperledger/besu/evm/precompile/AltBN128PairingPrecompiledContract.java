@@ -51,7 +51,7 @@ public class AltBN128PairingPrecompiledContract extends AbstractAltBnPrecompiled
   private final long pairingGasCost;
   private final long baseGasCost;
 
-  private AltBN128PairingPrecompiledContract(
+  AltBN128PairingPrecompiledContract(
       final GasCalculator gasCalculator, final long pairingGasCost, final long baseGasCost) {
     super(
         "AltBN128Pairing",
@@ -81,6 +81,17 @@ public class AltBN128PairingPrecompiledContract extends AbstractAltBnPrecompiled
   public static AltBN128PairingPrecompiledContract istanbul(final GasCalculator gasCalculator) {
     return new AltBN128PairingPrecompiledContract(gasCalculator, 34_000L, 45_000L);
   }
+
+  /**
+   * Create Granite AltBN128Pairing precompiled contract.
+   *
+   * @param gasCalculator the gas calculator
+   * @return the AltBN128Pairing precompiled contract
+   */
+  public static AltBN128PairingPrecompiledContract granite(final GasCalculator gasCalculator) {
+    return new AltBN128PairingGranitePrecompiledContract(gasCalculator, 34_000L, 45_000L);
+  }
+
 
   @Override
   public long gasRequirement(final Bytes input) {

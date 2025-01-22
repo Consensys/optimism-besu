@@ -57,8 +57,8 @@ import org.apache.tuweni.bytes.Bytes32;
 /** The Evm executor. */
 public class EVMExecutor {
 
-  private final EVM evm;
-  private PrecompileContractRegistry precompileContractRegistry;
+  final EVM evm;
+  PrecompileContractRegistry precompileContractRegistry;
   private boolean commitWorldState = false;
   private WorldUpdater worldUpdater = new SimpleWorld();
   private long gas = Long.MAX_VALUE;
@@ -88,7 +88,7 @@ public class EVMExecutor {
   private ContractCreationProcessor contractCreationProcessor = null;
   private MessageFrame.Type messageFrameType = MessageFrame.Type.MESSAGE_CALL;
 
-  private EVMExecutor(final EVM evm) {
+  EVMExecutor(final EVM evm) {
     checkNotNull(evm, "evm must not be null");
     this.evm = evm;
   }
