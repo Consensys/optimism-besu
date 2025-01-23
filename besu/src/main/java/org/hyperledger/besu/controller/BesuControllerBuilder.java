@@ -845,7 +845,8 @@ public abstract class BesuControllerBuilder implements MiningParameterOverrides 
             () -> {
               if (genesisConfigFile instanceof OpGenesisConfigFile opGenesisConfigFile) {
                 // todo Temporary modification
-                return OptimismGenesisState.fromConfig(dataStorageConfiguration, opGenesisConfigFile, protocolSchedule);
+                return OptimismGenesisState.fromConfig(
+                    dataStorageConfiguration, opGenesisConfigFile, protocolSchedule);
               } else {
                 return GenesisState.fromConfig(
                     dataStorageConfiguration, genesisConfigFile, protocolSchedule);

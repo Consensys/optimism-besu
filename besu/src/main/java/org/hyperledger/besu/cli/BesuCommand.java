@@ -1607,8 +1607,9 @@ public class BesuCommand implements DefaultCommandValues, Runnable {
     } else if (OP_SEPOLIA.equals(network) || OP_MAINNET.equals(network)) {
       effectiveGenesisFile = OpGenesisConfigFile.fromResource(network.getGenesisFile());
     } else {
-      effectiveGenesisFile = GenesisConfigFile.fromResource(
-          Optional.ofNullable(network).orElse(MAINNET).getGenesisFile());
+      effectiveGenesisFile =
+          GenesisConfigFile.fromResource(
+              Optional.ofNullable(network).orElse(MAINNET).getGenesisFile());
     }
     return effectiveGenesisFile.withOverrides(genesisConfigOverrides);
   }
