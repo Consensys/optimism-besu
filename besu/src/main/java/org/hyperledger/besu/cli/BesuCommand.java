@@ -22,6 +22,8 @@ import static java.util.Collections.singletonList;
 import static org.hyperledger.besu.cli.DefaultCommandValues.getDefaultBesuDataPath;
 import static org.hyperledger.besu.cli.config.NetworkName.EPHEMERY;
 import static org.hyperledger.besu.cli.config.NetworkName.MAINNET;
+import static org.hyperledger.besu.cli.config.NetworkName.OP_MAINNET;
+import static org.hyperledger.besu.cli.config.NetworkName.OP_SEPOLIA;
 import static org.hyperledger.besu.cli.util.CommandLineUtils.DEPENDENCY_WARNING_MSG;
 import static org.hyperledger.besu.cli.util.CommandLineUtils.isOptionSet;
 import static org.hyperledger.besu.controller.BesuController.DATABASE_PATH;
@@ -88,6 +90,7 @@ import org.hyperledger.besu.config.CheckpointConfigOptions;
 import org.hyperledger.besu.config.GenesisConfigFile;
 import org.hyperledger.besu.config.GenesisConfigOptions;
 import org.hyperledger.besu.config.MergeConfiguration;
+import org.hyperledger.besu.config.OpGenesisConfigFile;
 import org.hyperledger.besu.controller.BesuController;
 import org.hyperledger.besu.controller.BesuControllerBuilder;
 import org.hyperledger.besu.crypto.Blake2bfMessageDigest;
@@ -1597,13 +1600,16 @@ public class BesuCommand implements DefaultCommandValues, Runnable {
 
   private GenesisConfigFile readGenesisConfigFile() {
     GenesisConfigFile effectiveGenesisFile;
-    effectiveGenesisFile =
-        network.equals(EPHEMERY)
-            ? EphemeryGenesisUpdater.updateGenesis(genesisConfigOverrides)
-            : genesisFile != null
-                ? GenesisConfigFile.fromSource(genesisConfigSource(genesisFile))
-                : GenesisConfigFile.fromResource(
-                    Optional.ofNullable(network).orElse(MAINNET).getGenesisFile());
+    if (EPHEMERY.equals(network)) {
+      effectiveGenesisFile = EphemeryGenesisUpdater.updateGenesis(genesisConfigOverrides);
+    } else if (genesisFile != null) {
+      effectiveGenesisFile = GenesisConfigFile.fromSource(genesisConfigSource(genesisFile));
+    } else if (OP_SEPOLIA.equals(network) || OP_MAINNET.equals(network)) {
+      effectiveGenesisFile = OpGenesisConfigFile.fromResource(network.getGenesisFile());
+    } else {
+      effectiveGenesisFile = GenesisConfigFile.fromResource(
+          Optional.ofNullable(network).orElse(MAINNET).getGenesisFile());
+    }
     return effectiveGenesisFile.withOverrides(genesisConfigOverrides);
   }
 

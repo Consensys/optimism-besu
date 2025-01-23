@@ -17,7 +17,7 @@ public class OpGenesisConfigFile extends GenesisConfigFile {
      *
      * @return the genesis config file
      */
-    public static GenesisConfigFile mainnet() {
+    public static OpGenesisConfigFile mainnet() {
         return fromSource(GenesisConfigFile.class.getResource("/optimism-mainnet.json"));
     }
 
@@ -27,7 +27,7 @@ public class OpGenesisConfigFile extends GenesisConfigFile {
      * @param jsonSource the URL
      * @return the genesis config file
      */
-    public static GenesisConfigFile fromSource(final URL jsonSource) {
+    public static OpGenesisConfigFile fromSource(final URL jsonSource) {
         return fromConfig(JsonUtil.objectNodeFromURL(jsonSource, false));
     }
 
@@ -37,7 +37,7 @@ public class OpGenesisConfigFile extends GenesisConfigFile {
      * @param resourceName the resource name
      * @return the genesis config file
      */
-    public static GenesisConfigFile fromResource(final String resourceName) {
+    public static OpGenesisConfigFile fromResource(final String resourceName) {
         return fromConfig(GenesisConfigFile.class.getResource(resourceName));
     }
 
@@ -57,7 +57,7 @@ public class OpGenesisConfigFile extends GenesisConfigFile {
      * @param json the json string
      * @return the genesis config file
      */
-    public static GenesisConfigFile fromConfig(final String json) {
+    public static OpGenesisConfigFile fromConfig(final String json) {
         return fromConfig(JsonUtil.objectNodeFromString(json, false));
     }
 
@@ -67,8 +67,8 @@ public class OpGenesisConfigFile extends GenesisConfigFile {
      * @param config the config
      * @return the genesis config file
      */
-    public static GenesisConfigFile fromConfig(final ObjectNode config) {
-        return new GenesisConfigFile(new GenesisReader.FromObjectNode(config));
+    public static OpGenesisConfigFile fromConfig(final ObjectNode config) {
+        return new OpGenesisConfigFile(new GenesisReader.FromObjectNode(config));
     }
 
     /**
