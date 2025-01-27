@@ -39,8 +39,10 @@ public class GenesisConfigFile {
   public static final Wei BASEFEE_AT_GENESIS_DEFAULT_VALUE = Wei.of(1_000_000_000L);
 
   final GenesisReader loader;
+
   /** genesis root node */
   protected final ObjectNode genesisRoot;
+
   /** map of genesis overrides */
   protected Map<String, String> overrides;
 

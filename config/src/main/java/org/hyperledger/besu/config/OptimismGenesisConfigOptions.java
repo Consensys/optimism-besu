@@ -147,8 +147,8 @@ public interface OptimismGenesisConfigOptions extends GenesisConfigOptions {
 
   /**
    * Returns boolean indicating whether head time is interop or not.
-   * @param headTime epoch time to check
    *
+   * @param headTime epoch time to check
    * @return the optimism config options.
    */
   boolean isInterop(long headTime);

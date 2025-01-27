@@ -57,9 +57,11 @@ public class JsonGenesisConfigOptions implements GenesisConfigOptions {
 
   /** root node. */
   protected final ObjectNode configRoot;
+
   /** genesis config override map. */
   protected final Map<String, String> configOverrides =
       new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+
   /** transitions config options. */
   protected final TransitionsConfigOptions transitions;
 
@@ -547,8 +549,8 @@ public class JsonGenesisConfigOptions implements GenesisConfigOptions {
 
   /**
    * Gets optional long value from config, deferring to overrides if they are present.
-   * @param key string to lookup the value for.
    *
+   * @param key string to lookup the value for.
    * @return OptionalLong value, empty if not present.
    */
   protected OptionalLong getOptionalLong(final String key) {
