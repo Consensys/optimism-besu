@@ -20,6 +20,7 @@ import java.util.Map;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
+/** Interface for Optimism genesis config file. */
 public class OpGenesisConfigFile extends GenesisConfigFile {
 
   OpGenesisConfigFile(final GenesisReader loader) {

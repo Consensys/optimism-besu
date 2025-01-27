@@ -20,8 +20,10 @@ import java.util.OptionalLong;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.ImmutableMap;
 
+/** Json implementation of Optimism genesis config options. */
 public class JsonOptimismConfigOptions implements OptimismConfigOptions {
 
+  /** Default Json Optimism config options */
   public static final JsonOptimismConfigOptions DEFAULT =
       new JsonOptimismConfigOptions(JsonUtil.createEmptyObjectNode());
 

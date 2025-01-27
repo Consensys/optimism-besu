@@ -17,6 +17,7 @@ package org.hyperledger.besu.config;
 import java.util.Map;
 import java.util.OptionalLong;
 
+/** interface for Optimisim Config Options. */
 public interface OptimismConfigOptions {
 
   /**

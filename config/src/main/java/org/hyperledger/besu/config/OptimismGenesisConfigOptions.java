@@ -16,6 +16,7 @@ package org.hyperledger.besu.config;
 
 import java.util.OptionalLong;
 
+/** Optimism Genesis Config Options interface. */
 public interface OptimismGenesisConfigOptions extends GenesisConfigOptions {
   /**
    * Is Optimism boolean
@@ -137,7 +138,18 @@ public interface OptimismGenesisConfigOptions extends GenesisConfigOptions {
    */
   OptimismConfigOptions getOptimismConfigOptions();
 
+  /**
+   * Gets optimism interop time
+   *
+   * @return the optimism interop time.
+   */
   OptionalLong getInteropTime();
 
+  /**
+   * Returns boolean indicating whether head time is interop or not.
+   * @param headTime epoch time to check
+   *
+   * @return the optimism config options.
+   */
   boolean isInterop(long headTime);
 }
