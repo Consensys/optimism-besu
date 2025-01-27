@@ -56,7 +56,8 @@ public class JsonGenesisConfigOptions implements GenesisConfigOptions {
       "consolidationrequestcontractaddress";
 
   protected final ObjectNode configRoot;
-  protected final Map<String, String> configOverrides = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+  protected final Map<String, String> configOverrides =
+      new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
   protected final TransitionsConfigOptions transitions;
 
   /**
@@ -80,7 +81,8 @@ public class JsonGenesisConfigOptions implements GenesisConfigOptions {
       final ObjectNode configRoot, final Map<String, String> configOverrides) {
     final TransitionsConfigOptions transitionsConfigOptions;
     transitionsConfigOptions = loadTransitionsFrom(configRoot);
-    return new JsonOptimismGenesisConfigOptions(configRoot, configOverrides, transitionsConfigOptions);
+    return new JsonOptimismGenesisConfigOptions(
+        configRoot, configOverrides, transitionsConfigOptions);
   }
 
   private static TransitionsConfigOptions loadTransitionsFrom(final ObjectNode parentNode) {
