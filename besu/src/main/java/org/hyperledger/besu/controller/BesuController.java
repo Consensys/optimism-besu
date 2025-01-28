@@ -17,6 +17,7 @@ package org.hyperledger.besu.controller;
 import org.hyperledger.besu.cli.config.EthNetworkConfig;
 import org.hyperledger.besu.config.GenesisConfigFile;
 import org.hyperledger.besu.config.GenesisConfigOptions;
+import org.hyperledger.besu.config.OpGenesisConfigFile;
 import org.hyperledger.besu.config.PowAlgorithm;
 import org.hyperledger.besu.config.QbftConfigOptions;
 import org.hyperledger.besu.cryptoservices.NodeKey;
@@ -365,6 +366,9 @@ public class BesuController implements java.io.Closeable {
         builder = new QbftBesuControllerBuilder();
       } else if (configOptions.isClique()) {
         builder = new CliqueBesuControllerBuilder();
+      } else if (genesisConfigFile instanceof OpGenesisConfigFile) {
+        // todo Temporary modification, will later use OptimismBesuControllerBuilder
+        builder = new MainnetBesuControllerBuilder();
       } else {
         throw new IllegalArgumentException("Unknown consensus mechanism defined");
       }

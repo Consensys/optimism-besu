@@ -46,7 +46,12 @@ public enum NetworkName {
   /** Classic network name. */
   CLASSIC("/classic.json", BigInteger.valueOf(1)),
   /** Mordor network name. */
-  MORDOR("/mordor.json", BigInteger.valueOf(7));
+  MORDOR("/mordor.json", BigInteger.valueOf(7)),
+
+  /** Optimism Mainnet network name. */
+  OP_MAINNET("/optimism-mainnet.json", BigInteger.valueOf(10L)),
+  /** Optimism sepolia network name. */
+  OP_SEPOLIA("/optimism-sepolia.json", BigInteger.valueOf(11155420L));
 
   private final String genesisFile;
   private final BigInteger networkId;

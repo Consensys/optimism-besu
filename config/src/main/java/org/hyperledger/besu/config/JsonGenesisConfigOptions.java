@@ -55,9 +55,15 @@ public class JsonGenesisConfigOptions implements GenesisConfigOptions {
   private static final String CONSOLIDATION_REQUEST_CONTRACT_ADDRESS_KEY =
       "consolidationrequestcontractaddress";
 
-  private final ObjectNode configRoot;
-  private final Map<String, String> configOverrides = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
-  private final TransitionsConfigOptions transitions;
+  /** root node. */
+  protected final ObjectNode configRoot;
+
+  /** genesis config override map. */
+  protected final Map<String, String> configOverrides =
+      new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+
+  /** transitions config options. */
+  protected final TransitionsConfigOptions transitions;
 
   /**
    * From json object json genesis config options.
@@ -65,7 +71,7 @@ public class JsonGenesisConfigOptions implements GenesisConfigOptions {
    * @param configRoot the config root
    * @return the json genesis config options
    */
-  public static JsonGenesisConfigOptions fromJsonObject(final ObjectNode configRoot) {
+  public static JsonOptimismGenesisConfigOptions fromJsonObject(final ObjectNode configRoot) {
     return fromJsonObjectWithOverrides(configRoot, emptyMap());
   }
 
@@ -76,11 +82,12 @@ public class JsonGenesisConfigOptions implements GenesisConfigOptions {
    * @param configOverrides the config overrides
    * @return the json genesis config options
    */
-  static JsonGenesisConfigOptions fromJsonObjectWithOverrides(
+  static JsonOptimismGenesisConfigOptions fromJsonObjectWithOverrides(
       final ObjectNode configRoot, final Map<String, String> configOverrides) {
     final TransitionsConfigOptions transitionsConfigOptions;
     transitionsConfigOptions = loadTransitionsFrom(configRoot);
-    return new JsonGenesisConfigOptions(configRoot, configOverrides, transitionsConfigOptions);
+    return new JsonOptimismGenesisConfigOptions(
+        configRoot, configOverrides, transitionsConfigOptions);
   }
 
   private static TransitionsConfigOptions loadTransitionsFrom(final ObjectNode parentNode) {
@@ -540,7 +547,13 @@ public class JsonGenesisConfigOptions implements GenesisConfigOptions {
     return builder.build();
   }
 
-  private OptionalLong getOptionalLong(final String key) {
+  /**
+   * Gets optional long value from config, deferring to overrides if they are present.
+   *
+   * @param key string to lookup the value for.
+   * @return OptionalLong value, empty if not present.
+   */
+  protected OptionalLong getOptionalLong(final String key) {
     if (configOverrides.containsKey(key)) {
       final String value = configOverrides.get(key);
       return value == null || value.isEmpty()
@@ -551,7 +564,13 @@ public class JsonGenesisConfigOptions implements GenesisConfigOptions {
     }
   }
 
-  private OptionalInt getOptionalInt(final String key) {
+  /**
+   * Gets an optional int value from config, by key name.
+   *
+   * @param key string to fetch the value by.
+   * @return OptionalInt value.
+   */
+  protected OptionalInt getOptionalInt(final String key) {
     if (configOverrides.containsKey(key)) {
       final String value = configOverrides.get(key);
       return value == null || value.isEmpty()
@@ -562,7 +581,13 @@ public class JsonGenesisConfigOptions implements GenesisConfigOptions {
     }
   }
 
-  private Optional<BigInteger> getOptionalBigInteger(final String key) {
+  /**
+   * Gets an optional BigInteger value from config, by key name.
+   *
+   * @param key string key to fetch the value by.
+   * @return Optional BigInteger value.
+   */
+  protected Optional<BigInteger> getOptionalBigInteger(final String key) {
     if (configOverrides.containsKey(key)) {
       final String value = configOverrides.get(key);
       return value == null || value.isEmpty()
@@ -573,7 +598,13 @@ public class JsonGenesisConfigOptions implements GenesisConfigOptions {
     }
   }
 
-  private Optional<Boolean> getOptionalBoolean(final String key) {
+  /**
+   * Gets an optional boolean value from config, by key name.
+   *
+   * @param key string to fetch the value by.
+   * @return Optional bolean value.
+   */
+  protected Optional<Boolean> getOptionalBoolean(final String key) {
     if (configOverrides.containsKey(key)) {
       final String value = configOverrides.get(key);
       return value == null || value.isEmpty()
@@ -584,7 +615,13 @@ public class JsonGenesisConfigOptions implements GenesisConfigOptions {
     }
   }
 
-  private Optional<Hash> getOptionalHash(final String key) {
+  /**
+   * Gets an optional Hash value from config, by key name.
+   *
+   * @param key string to fetch the value by.
+   * @return Optional Hash value.
+   */
+  protected Optional<Hash> getOptionalHash(final String key) {
     if (configOverrides.containsKey(key)) {
       final String overrideHash = configOverrides.get(key);
       return Optional.of(Hash.fromHexString(overrideHash));

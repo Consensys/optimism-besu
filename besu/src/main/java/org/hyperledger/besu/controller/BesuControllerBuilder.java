@@ -20,6 +20,7 @@ import org.hyperledger.besu.components.BesuComponent;
 import org.hyperledger.besu.config.CheckpointConfigOptions;
 import org.hyperledger.besu.config.GenesisConfigFile;
 import org.hyperledger.besu.config.GenesisConfigOptions;
+import org.hyperledger.besu.config.OpGenesisConfigFile;
 import org.hyperledger.besu.consensus.merge.MergeContext;
 import org.hyperledger.besu.consensus.merge.UnverifiedForkchoiceSupplier;
 import org.hyperledger.besu.consensus.qbft.BFTPivotSelectorFromPeers;
@@ -40,6 +41,7 @@ import org.hyperledger.besu.ethereum.chain.ChainPrunerConfiguration;
 import org.hyperledger.besu.ethereum.chain.DefaultBlockchain;
 import org.hyperledger.besu.ethereum.chain.GenesisState;
 import org.hyperledger.besu.ethereum.chain.MutableBlockchain;
+import org.hyperledger.besu.ethereum.chain.OptimismGenesisState;
 import org.hyperledger.besu.ethereum.chain.VariablesStorage;
 import org.hyperledger.besu.ethereum.core.BlockHeader;
 import org.hyperledger.besu.ethereum.core.Difficulty;
@@ -840,9 +842,16 @@ public abstract class BesuControllerBuilder implements MiningParameterOverrides 
             genesisStateRoot ->
                 GenesisState.fromStorage(genesisStateRoot, genesisConfigFile, protocolSchedule))
         .orElseGet(
-            () ->
-                GenesisState.fromConfig(
-                    dataStorageConfiguration, genesisConfigFile, protocolSchedule));
+            () -> {
+              if (genesisConfigFile instanceof OpGenesisConfigFile opGenesisConfigFile) {
+                // todo Temporary modification
+                return OptimismGenesisState.fromConfig(
+                    dataStorageConfiguration, opGenesisConfigFile, protocolSchedule);
+              } else {
+                return GenesisState.fromConfig(
+                    dataStorageConfiguration, genesisConfigFile, protocolSchedule);
+              }
+            });
   }
 
   private TrieLogPruner createTrieLogPruner(
