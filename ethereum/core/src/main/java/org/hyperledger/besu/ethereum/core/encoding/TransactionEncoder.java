@@ -28,25 +28,32 @@ import org.apache.tuweni.bytes.Bytes;
 public class TransactionEncoder {
 
   @FunctionalInterface
-  interface Encoder {
+  public interface Encoder {
     void encode(Transaction transaction, RLPOutput output);
   }
 
-  private static final ImmutableMap<TransactionType, Encoder> TYPED_TRANSACTION_ENCODERS =
-      ImmutableMap.of(
-          TransactionType.ACCESS_LIST,
-          AccessListTransactionEncoder::encode,
-          TransactionType.EIP1559,
-          EIP1559TransactionEncoder::encode,
-          TransactionType.BLOB,
-          BlobTransactionEncoder::encode,
-          TransactionType.DELEGATE_CODE,
-          CodeDelegationTransactionEncoder::encode,
-          TransactionType.OPTIMISM_DEPOSIT,
-          OptimismDepositTransactionEncoder::encode);
+  @FunctionalInterface
+  public interface EncoderProvider {
+    /**
+     * Gets the encoder for a given transaction type and encoding context. If the context is
+     * POOLED_TRANSACTION, it uses the network encoder for the type. Otherwise, it uses the typed
+     * encoder.
+     *
+     * @param transactionType the transaction type
+     * @param encodingContext the encoding context
+     * @return the encoder
+     */
+    Encoder getEncoder(TransactionType transactionType, EncodingContext encodingContext);
+  }
 
-  private static final ImmutableMap<TransactionType, Encoder> POOLED_TRANSACTION_ENCODERS =
-      ImmutableMap.of(TransactionType.BLOB, BlobPooledTransactionEncoder::encode);
+  /**
+   * The Encoder provider.
+   */
+  private static EncoderProvider encoderProvider = new MainnetTransactionEncoderDecoderProvider();
+
+  public static void setEncoderProvider(final EncoderProvider encoderProvider) {
+    TransactionEncoder.encoderProvider = encoderProvider;
+  }
 
   /**
    * Encodes a transaction into RLP format.
@@ -122,17 +129,8 @@ public class TransactionEncoder {
         transaction.getType(), "Transaction type for %s was not specified.", transaction);
   }
 
-  private static Encoder getEncoder(
+  private static TransactionEncoder.Encoder getEncoder(
       final TransactionType transactionType, final EncodingContext encodingContext) {
-
-    if (encodingContext.equals(EncodingContext.POOLED_TRANSACTION)) {
-      if (POOLED_TRANSACTION_ENCODERS.containsKey(transactionType)) {
-        return POOLED_TRANSACTION_ENCODERS.get(transactionType);
-      }
-    }
-    return checkNotNull(
-        TYPED_TRANSACTION_ENCODERS.get(transactionType),
-        "Developer Error. A supported transaction type %s has no associated encoding logic",
-        transactionType);
+    return TransactionEncoder.encoderProvider.getEncoder(transactionType, encodingContext);
   }
 }
