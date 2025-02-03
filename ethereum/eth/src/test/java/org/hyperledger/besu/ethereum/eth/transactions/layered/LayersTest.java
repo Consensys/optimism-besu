@@ -1600,6 +1600,7 @@ public class LayersTest extends BaseTransactionPoolTest {
             case EIP1559 -> createEIP1559PendingTransaction(sender, nonce);
             case BLOB -> createBlobPendingTransaction(sender, nonce);
             case DELEGATE_CODE -> throw new UnsupportedOperationException();
+            case OPTIMISM_DEPOSIT -> throw new UnsupportedOperationException();
           };
       liveTxsBySender.get(sender).put(nonce, newPendingTx);
       return newPendingTx;
