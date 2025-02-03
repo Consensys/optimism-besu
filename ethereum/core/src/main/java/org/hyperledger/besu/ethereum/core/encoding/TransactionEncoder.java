@@ -22,7 +22,6 @@ import org.hyperledger.besu.ethereum.rlp.BytesValueRLPOutput;
 import org.hyperledger.besu.ethereum.rlp.RLP;
 import org.hyperledger.besu.ethereum.rlp.RLPOutput;
 
-import com.google.common.collect.ImmutableMap;
 import org.apache.tuweni.bytes.Bytes;
 
 public class TransactionEncoder {
@@ -46,9 +45,7 @@ public class TransactionEncoder {
     Encoder getEncoder(TransactionType transactionType, EncodingContext encodingContext);
   }
 
-  /**
-   * The Encoder provider. Defaults to the MainnetTransactionEncoderDecoderProvider.
-   */
+  /** The Encoder provider. Defaults to the MainnetTransactionEncoderDecoderProvider. */
   private static EncoderProvider encoderProvider = new MainnetTransactionEncoderDecoderProvider();
 
   public static void setEncoderProvider(final EncoderProvider encoderProvider) {

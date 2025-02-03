@@ -41,5 +41,4 @@ public class OptimismDepositTransactionDecoder {
     input.leaveList();
     return builder.build();
   }
-
 }

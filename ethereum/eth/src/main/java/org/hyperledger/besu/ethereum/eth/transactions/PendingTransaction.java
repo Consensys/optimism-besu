@@ -154,7 +154,7 @@ public abstract class PendingTransaction
           case EIP1559 -> computeEIP1559MemorySize();
           case BLOB -> computeBlobMemorySize();
           case DELEGATE_CODE -> computeSetCodeMemorySize();
-      case OPTIMISM_DEPOSIT -> computeOpDepositMemorySize();
+          case OPTIMISM_DEPOSIT -> computeOpDepositMemorySize();
         }
         + PENDING_TRANSACTION_MEMORY_SIZE;
   }

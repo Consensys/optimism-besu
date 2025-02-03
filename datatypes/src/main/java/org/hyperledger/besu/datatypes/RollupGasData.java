@@ -17,8 +17,8 @@ package org.hyperledger.besu.datatypes;
 /**
  * Optimism roll up data records.
  *
- * @param zeroes     the number of zeroes after tx encoded to bytes
- * @param ones       the number of non-zeroes after tx encoded to bytes
+ * @param zeroes the number of zeroes after tx encoded to bytes
+ * @param ones the number of non-zeroes after tx encoded to bytes
  * @param fastLzSize the length of the tx encoded to bytes after compression
  */
 @SuppressWarnings("UnusedVariable")

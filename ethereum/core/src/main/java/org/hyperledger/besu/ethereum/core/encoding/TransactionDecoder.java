@@ -14,7 +14,6 @@
  */
 package org.hyperledger.besu.ethereum.core.encoding;
 
-
 import org.hyperledger.besu.datatypes.TransactionType;
 import org.hyperledger.besu.ethereum.core.Transaction;
 import org.hyperledger.besu.ethereum.rlp.RLP;
@@ -45,13 +44,12 @@ public class TransactionDecoder {
     Decoder getDecoder(TransactionType transactionType, EncodingContext encodingContext);
   }
 
-  /**
-   * The decoder provider. Defaults to the MainnetTransactionEncoderDecoderProvider.
-   */
+  /** The decoder provider. Defaults to the MainnetTransactionEncoderDecoderProvider. */
   private static DecoderProvider decoderProvider = new MainnetTransactionEncoderDecoderProvider();
 
   /**
    * Sets the decoder provider to be used for decoding transactions.
+   *
    * @param decoderProvider the decoder provider to be used
    */
   public static void setDecoderProvider(final DecoderProvider decoderProvider) {

@@ -14,13 +14,10 @@
  */
 package org.hyperledger.besu.util.flz;
 
-/**
- * FastLz compress algorithm.
- */
+/** FastLz compress algorithm. */
 public class FastLz {
 
-  private FastLz() {
-  }
+  private FastLz() {}
 
   /**
    * FlzCompressLen returns the length of the data after compression through FastLZ, based on <a
@@ -116,5 +113,4 @@ public class FastLz {
     ht[hash(u24(ib, ip))] = ip;
     return ip + 1;
   }
-
 }

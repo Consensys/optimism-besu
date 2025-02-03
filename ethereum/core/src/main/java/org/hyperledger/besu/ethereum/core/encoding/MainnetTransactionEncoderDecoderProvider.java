@@ -14,43 +14,47 @@
  */
 package org.hyperledger.besu.ethereum.core.encoding;
 
-import com.google.common.collect.ImmutableMap;
-import org.hyperledger.besu.datatypes.TransactionType;
-
 import static com.google.common.base.Preconditions.checkNotNull;
 
-/**
- * The transaction encoder provider for Mainnet.
- */
-public class MainnetTransactionEncoderDecoderProvider implements TransactionEncoder.EncoderProvider,TransactionDecoder.DecoderProvider  {
+import org.hyperledger.besu.datatypes.TransactionType;
 
-  private static final ImmutableMap<TransactionType, TransactionEncoder.Encoder> TYPED_TRANSACTION_ENCODERS =
-      ImmutableMap.of(
-          TransactionType.ACCESS_LIST,
-          AccessListTransactionEncoder::encode,
-          TransactionType.EIP1559,
-          EIP1559TransactionEncoder::encode,
-          TransactionType.BLOB,
-          BlobTransactionEncoder::encode,
-          TransactionType.DELEGATE_CODE,
-          CodeDelegationTransactionEncoder::encode);
+import com.google.common.collect.ImmutableMap;
 
-  private static final ImmutableMap<TransactionType, TransactionDecoder.Decoder> TYPED_TRANSACTION_DECODERS =
-      ImmutableMap.of(
-          TransactionType.ACCESS_LIST,
-          AccessListTransactionDecoder::decode,
-          TransactionType.EIP1559,
-          EIP1559TransactionDecoder::decode,
-          TransactionType.BLOB,
-          BlobTransactionDecoder::decode,
-          TransactionType.DELEGATE_CODE,
-          CodeDelegationTransactionDecoder::decode);
+/** The transaction encoder provider for Mainnet. */
+public class MainnetTransactionEncoderDecoderProvider
+    implements TransactionEncoder.EncoderProvider, TransactionDecoder.DecoderProvider {
 
-  private static final ImmutableMap<TransactionType, TransactionEncoder.Encoder> POOLED_TRANSACTION_ENCODERS =
-      ImmutableMap.of(TransactionType.BLOB, BlobPooledTransactionEncoder::encode);
+  private static final ImmutableMap<TransactionType, TransactionEncoder.Encoder>
+      TYPED_TRANSACTION_ENCODERS =
+          ImmutableMap.of(
+              TransactionType.ACCESS_LIST,
+              AccessListTransactionEncoder::encode,
+              TransactionType.EIP1559,
+              EIP1559TransactionEncoder::encode,
+              TransactionType.BLOB,
+              BlobTransactionEncoder::encode,
+              TransactionType.DELEGATE_CODE,
+              CodeDelegationTransactionEncoder::encode);
 
-  private static final ImmutableMap<TransactionType, TransactionDecoder.Decoder> POOLED_TRANSACTION_DECODERS =
-      ImmutableMap.of(TransactionType.BLOB, BlobPooledTransactionDecoder::decode);
+  private static final ImmutableMap<TransactionType, TransactionDecoder.Decoder>
+      TYPED_TRANSACTION_DECODERS =
+          ImmutableMap.of(
+              TransactionType.ACCESS_LIST,
+              AccessListTransactionDecoder::decode,
+              TransactionType.EIP1559,
+              EIP1559TransactionDecoder::decode,
+              TransactionType.BLOB,
+              BlobTransactionDecoder::decode,
+              TransactionType.DELEGATE_CODE,
+              CodeDelegationTransactionDecoder::decode);
+
+  private static final ImmutableMap<TransactionType, TransactionEncoder.Encoder>
+      POOLED_TRANSACTION_ENCODERS =
+          ImmutableMap.of(TransactionType.BLOB, BlobPooledTransactionEncoder::encode);
+
+  private static final ImmutableMap<TransactionType, TransactionDecoder.Decoder>
+      POOLED_TRANSACTION_DECODERS =
+          ImmutableMap.of(TransactionType.BLOB, BlobPooledTransactionDecoder::decode);
 
   @Override
   public TransactionEncoder.Encoder getEncoder(
@@ -80,5 +84,4 @@ public class MainnetTransactionEncoderDecoderProvider implements TransactionEnco
         "Developer Error. A supported transaction type %s has no associated decoding logic",
         transactionType);
   }
-
 }

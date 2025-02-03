@@ -14,7 +14,6 @@
  */
 package org.hyperledger.besu.ethereum.core;
 
-import org.apache.tuweni.bytes.Bytes;
 import org.hyperledger.besu.crypto.SECPSignature;
 import org.hyperledger.besu.datatypes.AccessListEntry;
 import org.hyperledger.besu.datatypes.Address;
@@ -29,7 +28,10 @@ import java.math.BigInteger;
 import java.util.List;
 import java.util.Optional;
 
-public class OptimismTransaction extends Transaction implements org.hyperledger.besu.datatypes.OptimismTransaction {
+import org.apache.tuweni.bytes.Bytes;
+
+public class OptimismTransaction extends Transaction
+    implements org.hyperledger.besu.datatypes.OptimismTransaction {
 
   private final Optional<Hash> sourceHash;
 
@@ -108,15 +110,15 @@ public class OptimismTransaction extends Transaction implements org.hyperledger.
     protected Wei mint;
     protected Boolean isSystemTx;
 
-
-
     @Override
     public OptimismTransaction.Builder copiedFrom(final Transaction toCopy) {
       super.copiedFrom(toCopy);
       if (toCopy instanceof OptimismTransaction opTransaction) {
         this.sourceHash = opTransaction.sourceHash.orElse(null);
-        this.mint = opTransaction.mint.orElse(null);;
-        this.isSystemTx = opTransaction.isSystemTx.orElse(null);;
+        this.mint = opTransaction.mint.orElse(null);
+        ;
+        this.isSystemTx = opTransaction.isSystemTx.orElse(null);
+        ;
       }
       return this;
     }
@@ -212,5 +214,4 @@ public class OptimismTransaction extends Transaction implements org.hyperledger.
           Optional.ofNullable(isSystemTx));
     }
   }
-
 }

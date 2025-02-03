@@ -38,5 +38,4 @@ public interface OptimismTransaction extends Transaction {
    * @return optional is system transaction flag
    */
   Optional<Boolean> getIsSystemTx();
-
 }
