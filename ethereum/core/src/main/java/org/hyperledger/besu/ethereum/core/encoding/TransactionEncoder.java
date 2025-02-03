@@ -47,7 +47,7 @@ public class TransactionEncoder {
   }
 
   /**
-   * The Encoder provider.
+   * The Encoder provider. Defaults to the MainnetTransactionEncoderDecoderProvider.
    */
   private static EncoderProvider encoderProvider = new MainnetTransactionEncoderDecoderProvider();
 

@@ -24,7 +24,7 @@ public class FastLzTest {
     data = new byte[1000];
     flzSize = FastLz.flzCompressLength(data);
     assertEquals(21, flzSize);
-    
+
     byte[] emptyTx = HexConverter.parseHexBinary("DD80808094095E7BAEA6A6C7C4C2DFEB977EFAC326AF552D878080808080");;
     flzSize = FastLz.flzCompressLength(emptyTx);
     assertEquals(31, flzSize);
