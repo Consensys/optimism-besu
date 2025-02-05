@@ -21,7 +21,7 @@ public class FastLz {
 
   /**
    * FlzCompressLen returns the length of the data after compression through FastLZ, based on <a
-   * href="">https://github.com/Vectorized/solady/blob/5315d937d79b335c668896d7533ac603adac5315/js/solady.js</a>
+   * href="solady.js">https://github.com/Vectorized/solady/blob/5315d937d79b335c668896d7533ac603adac5315/js/solady.js</a>
    *
    * @param ib data that should be compressed
    * @return the length of the data after compression

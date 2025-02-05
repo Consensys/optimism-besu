@@ -16,6 +16,9 @@ package org.hyperledger.besu.datatypes;
 
 import java.util.Optional;
 
+/**
+ * Transaction interface for Optimism Stack Spec.
+ */
 public interface OptimismTransaction extends Transaction {
 
   /**
