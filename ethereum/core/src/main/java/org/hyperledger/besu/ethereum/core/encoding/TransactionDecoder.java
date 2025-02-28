@@ -14,8 +14,6 @@
  */
 package org.hyperledger.besu.ethereum.core.encoding;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-
 import org.hyperledger.besu.datatypes.TransactionType;
 import org.hyperledger.besu.ethereum.core.Transaction;
 import org.hyperledger.besu.ethereum.rlp.RLP;
@@ -23,29 +21,40 @@ import org.hyperledger.besu.ethereum.rlp.RLPInput;
 
 import java.util.Optional;
 
-import com.google.common.collect.ImmutableMap;
 import org.apache.tuweni.bytes.Bytes;
 
 public class TransactionDecoder {
 
   @FunctionalInterface
-  interface Decoder {
+  public interface Decoder {
     Transaction decode(RLPInput input);
   }
 
-  private static final ImmutableMap<TransactionType, Decoder> TYPED_TRANSACTION_DECODERS =
-      ImmutableMap.of(
-          TransactionType.ACCESS_LIST,
-          AccessListTransactionDecoder::decode,
-          TransactionType.EIP1559,
-          EIP1559TransactionDecoder::decode,
-          TransactionType.BLOB,
-          BlobTransactionDecoder::decode,
-          TransactionType.DELEGATE_CODE,
-          CodeDelegationTransactionDecoder::decode);
+  @FunctionalInterface
+  public interface DecoderProvider {
+    /**
+     * Gets the decoder for a given transaction type and encoding context. If the context is
+     * POOLED_TRANSACTION, it uses the network decoder for the type. Otherwise, it uses the typed
+     * decoder.
+     *
+     * @param transactionType the transaction type
+     * @param encodingContext the encoding context
+     * @return the decoder
+     */
+    Decoder getDecoder(TransactionType transactionType, EncodingContext encodingContext);
+  }
 
-  private static final ImmutableMap<TransactionType, Decoder> POOLED_TRANSACTION_DECODERS =
-      ImmutableMap.of(TransactionType.BLOB, BlobPooledTransactionDecoder::decode);
+  /** The decoder provider. Defaults to the MainnetTransactionEncoderDecoderProvider. */
+  private static DecoderProvider decoderProvider = new MainnetTransactionEncoderDecoderProvider();
+
+  /**
+   * Sets the decoder provider to be used for decoding transactions.
+   *
+   * @param decoderProvider the decoder provider to be used
+   */
+  public static void setDecoderProvider(final DecoderProvider decoderProvider) {
+    TransactionDecoder.decoderProvider = decoderProvider;
+  }
 
   /**
    * Decodes an RLP input into a transaction. If the input represents a typed transaction, it uses
@@ -156,25 +165,8 @@ public class TransactionDecoder {
     return !rlpInput.nextIsList();
   }
 
-  /**
-   * Gets the decoder for a given transaction type and encoding context. If the context is
-   * POOLED_TRANSACTION, it uses the network decoder for the type. Otherwise, it uses the typed
-   * decoder.
-   *
-   * @param transactionType the transaction type
-   * @param encodingContext the encoding context
-   * @return the decoder
-   */
   private static Decoder getDecoder(
       final TransactionType transactionType, final EncodingContext encodingContext) {
-    if (encodingContext.equals(EncodingContext.POOLED_TRANSACTION)) {
-      if (POOLED_TRANSACTION_DECODERS.containsKey(transactionType)) {
-        return POOLED_TRANSACTION_DECODERS.get(transactionType);
-      }
-    }
-    return checkNotNull(
-        TYPED_TRANSACTION_DECODERS.get(transactionType),
-        "Developer Error. A supported transaction type %s has no associated decoding logic",
-        transactionType);
+    return TransactionDecoder.decoderProvider.getDecoder(transactionType, encodingContext);
   }
 }

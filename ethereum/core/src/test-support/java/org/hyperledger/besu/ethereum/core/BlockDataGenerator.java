@@ -374,6 +374,7 @@ public class BlockDataGenerator {
       case ACCESS_LIST -> accessListTransaction(payload, to);
       case BLOB -> blobTransaction(payload, to);
       case DELEGATE_CODE -> null;
+      case OPTIMISM_DEPOSIT -> null;
         // no default, all types accounted for.
     };
   }

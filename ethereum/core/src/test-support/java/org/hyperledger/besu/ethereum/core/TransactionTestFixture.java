@@ -94,6 +94,8 @@ public class TransactionTestFixture {
         break;
       case DELEGATE_CODE:
         break;
+      case OPTIMISM_DEPOSIT:
+        break;
     }
 
     to.ifPresent(builder::to);
