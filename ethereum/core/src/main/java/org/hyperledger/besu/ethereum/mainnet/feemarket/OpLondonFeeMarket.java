@@ -22,6 +22,7 @@ import java.util.Optional;
 /** The OpLondon fee market. */
 public class OpLondonFeeMarket extends LondonFeeMarket {
 
+  /** The Optimism Genesis config options. */
   protected final OptimismGenesisConfigOptions genesisConfigOptions;
 
   public OpLondonFeeMarket(
