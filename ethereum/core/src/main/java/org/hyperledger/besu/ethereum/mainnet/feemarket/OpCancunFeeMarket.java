@@ -23,7 +23,7 @@ import java.util.Optional;
 /** The OpCancun fee market. */
 public class OpCancunFeeMarket extends OpCanyonFeeMarket {
 
-  /** The Cancun fee market reference. Only used for blob gas price calculation. */
+  /** The Cancun fee market reference. */
   private final CancunFeeMarket cancunFeeMarket;
 
   public OpCancunFeeMarket(
