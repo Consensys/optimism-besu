@@ -1,5 +1,5 @@
 /*
- * Copyright Besu Contributors.
+ * Copyright contributors to Besu.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -14,16 +14,17 @@
  */
 package org.hyperledger.besu.ethereum.mainnet.feemarket;
 
-import org.apache.tuweni.units.bigints.UInt256s;
 import org.hyperledger.besu.config.GenesisConfigFile;
 import org.hyperledger.besu.config.OptimismGenesisConfigOptions;
 import org.hyperledger.besu.datatypes.Wei;
 import org.hyperledger.besu.ethereum.core.Transaction;
 import org.hyperledger.besu.ethereum.core.feemarket.TransactionPriceCalculator;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.Optional;
+
+import org.apache.tuweni.units.bigints.UInt256s;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** The OpLondon fee market. */
 public class OptimismLondonFeeMarket implements BaseFeeMarket {
