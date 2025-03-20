@@ -75,7 +75,7 @@ public class OptimismTransactionValidator extends MainnetTransactionValidator {
       }
       return ValidationResult.valid();
     }
-    return validate(transaction, baseFee, blobFee, transactionValidationParams);
+    return super.validate(transaction, baseFee, blobFee, transactionValidationParams);
   }
 
   @Override

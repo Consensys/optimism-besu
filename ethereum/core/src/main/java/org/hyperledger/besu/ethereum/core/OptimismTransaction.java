@@ -14,6 +14,9 @@
  */
 package org.hyperledger.besu.ethereum.core;
 
+import static com.google.common.base.Preconditions.checkState;
+
+import org.hyperledger.besu.crypto.KeyPair;
 import org.hyperledger.besu.crypto.SECPSignature;
 import org.hyperledger.besu.datatypes.AccessListEntry;
 import org.hyperledger.besu.datatypes.Address;
@@ -91,17 +94,17 @@ public class OptimismTransaction extends Transaction
 
   @Override
   public Optional<Hash> getSourceHash() {
-    return Optional.empty();
+    return sourceHash;
   }
 
   @Override
   public Optional<Wei> getMint() {
-    return Optional.empty();
+    return mint;
   }
 
   @Override
   public Optional<Boolean> getIsSystemTx() {
-    return Optional.empty();
+    return isSystemTx;
   }
 
   public static class Builder extends Transaction.Builder {
@@ -116,9 +119,7 @@ public class OptimismTransaction extends Transaction
       if (toCopy instanceof OptimismTransaction opTransaction) {
         this.sourceHash = opTransaction.sourceHash.orElse(null);
         this.mint = opTransaction.mint.orElse(null);
-        ;
         this.isSystemTx = opTransaction.isSystemTx.orElse(null);
-        ;
       }
       return this;
     }
@@ -184,12 +185,21 @@ public class OptimismTransaction extends Transaction
     }
 
     @Override
+    public OptimismTransaction signAndBuild(final KeyPair keys) {
+      if (transactionType == TransactionType.OPTIMISM_DEPOSIT) {
+        return build();
+      }
+      checkState(
+          signature == null, "The transaction signature has already been provided to this builder");
+      signature(computeSignature(keys));
+      sender(Address.extract(Hash.hash(keys.getPublicKey().getEncodedBytes())));
+      return build();
+    }
+
+    @Override
     public OptimismTransaction build() {
       if (transactionType == null) guessType();
 
-      if (transactionType != TransactionType.OPTIMISM_DEPOSIT) {
-        return (OptimismTransaction) super.build();
-      }
       return new OptimismTransaction(
           false,
           transactionType,

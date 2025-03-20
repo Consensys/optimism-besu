@@ -37,7 +37,6 @@ public class OptimismTransactionValidatorFactory extends TransactionValidatorFac
       final Set<TransactionType> acceptedTransactionTypes,
       final int maxInitcodeSize,
       final OptimismGenesisConfigOptions genesisOptions) {
-    super();
     this.transactionValidatorSupplier =
         Suppliers.memoize(
             () ->
