@@ -141,13 +141,20 @@ public class OptimismTransactionValidatorTest {
                 genesisConfigOptions));
     doReturn(ValidationResult.valid()).when(validator).validate(any(), any(), any(), any());
 
+    // Optimism transaction validator's validate method has 5 parameters.
     assertThat(
             validator.validate(
                 transaction, 0, Optional.empty(), Optional.empty(), transactionValidationParams))
         .isEqualTo(ValidationResult.valid());
+
+    // check super.validate is called
     verify(validator).validate(any(), any(), any(), any());
   }
 
+  /**
+   * After regolith is activation, a normal deposit transaction must have isSystemTx as false and
+   * transactionType as OPTIMISM_DEPOSIT to be valid.
+   */
   @Test
   public void shouldAcceptNormalDepositTx() {
     when(genesisConfigOptions.isRegolith(anyLong())).thenReturn(Boolean.TRUE);
@@ -165,6 +172,29 @@ public class OptimismTransactionValidatorTest {
             Integer.MAX_VALUE,
             genesisConfigOptions);
 
+    assertThat(
+            validator.validate(
+                transaction, 0, Optional.empty(), Optional.empty(), transactionValidationParams))
+        .isEqualTo(ValidationResult.valid());
+  }
+
+  @Test
+  public void shouldAcceptSystemTxBeforeRegolithActivation() {
+    when(genesisConfigOptions.isRegolith(anyLong())).thenReturn(Boolean.FALSE);
+    final OptimismTransactionTestFixture txCreator = new OptimismTransactionTestFixture();
+    txCreator.isSystemTx(Boolean.TRUE);
+    txCreator.sender(Address.extract(Hash.hash(senderKeys.getPublicKey().getEncodedBytes())));
+    final OptimismTransaction transaction = txCreator.createTransaction(senderKeys);
+    final OptimismTransactionValidator validator =
+        createTransactionValidator(
+            gasCalculator,
+            GasLimitCalculator.constant(),
+            FeeMarket.london(0L),
+            false,
+            Optional.of(BigInteger.ONE),
+            Set.of(new TransactionType[] {TransactionType.OPTIMISM_DEPOSIT}),
+            Integer.MAX_VALUE,
+            genesisConfigOptions);
     assertThat(
             validator.validate(
                 transaction, 0, Optional.empty(), Optional.empty(), transactionValidationParams))
