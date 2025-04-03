@@ -29,7 +29,9 @@ import com.google.common.base.Suppliers;
 
 public class TransactionValidatorFactory {
 
-  private volatile Supplier<TransactionValidator> transactionValidatorSupplier;
+  volatile Supplier<TransactionValidator> transactionValidatorSupplier;
+
+  TransactionValidatorFactory() {}
 
   public TransactionValidatorFactory(
       final GasCalculator gasCalculator,
