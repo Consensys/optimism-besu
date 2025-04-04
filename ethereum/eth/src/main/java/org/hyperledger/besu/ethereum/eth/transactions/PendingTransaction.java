@@ -32,9 +32,9 @@ import static org.hyperledger.besu.ethereum.eth.transactions.PendingTransaction.
 import static org.hyperledger.besu.ethereum.eth.transactions.PendingTransaction.MemorySize.PENDING_TRANSACTION_SHALLOW_SIZE;
 import static org.hyperledger.besu.ethereum.eth.transactions.PendingTransaction.MemorySize.VERSIONED_HASH_SIZE;
 import static org.hyperledger.besu.ethereum.eth.transactions.PendingTransaction.OptimismMemorySize.DEPOSIT_SIZE;
-import static org.hyperledger.besu.ethereum.eth.transactions.PendingTransaction.OptimismMemorySize.SOURCE_HASH_SIZE;
 import static org.hyperledger.besu.ethereum.eth.transactions.PendingTransaction.OptimismMemorySize.IS_SYSTEM_TX_SIZE;
 import static org.hyperledger.besu.ethereum.eth.transactions.PendingTransaction.OptimismMemorySize.MINT_SIZE;
+import static org.hyperledger.besu.ethereum.eth.transactions.PendingTransaction.OptimismMemorySize.SOURCE_HASH_SIZE;
 
 import org.hyperledger.besu.datatypes.AccessListEntry;
 import org.hyperledger.besu.datatypes.Address;

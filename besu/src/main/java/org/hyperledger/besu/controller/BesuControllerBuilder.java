@@ -20,7 +20,7 @@ import org.hyperledger.besu.components.BesuComponent;
 import org.hyperledger.besu.config.CheckpointConfigOptions;
 import org.hyperledger.besu.config.GenesisConfig;
 import org.hyperledger.besu.config.GenesisConfigOptions;
-import org.hyperledger.besu.config.OpGenesisConfig;
+import org.hyperledger.besu.config.OptimismGenesisConfig;
 import org.hyperledger.besu.consensus.merge.MergeContext;
 import org.hyperledger.besu.consensus.merge.UnverifiedForkchoiceSupplier;
 import org.hyperledger.besu.consensus.qbft.BFTPivotSelectorFromPeers;
@@ -844,12 +844,13 @@ public abstract class BesuControllerBuilder implements MiningParameterOverrides 
                 GenesisState.fromStorage(genesisStateRoot, genesisConfig, protocolSchedule))
         .orElseGet(
             () -> {
-              if (genesisConfigFile instanceof OpGenesisConfig opGenesisConfig) {
+              if (genesisConfig instanceof OptimismGenesisConfig opGenesisConfig) {
                 // todo Temporary modification
                 return OptimismGenesisState.fromConfig(
                     dataStorageConfiguration, opGenesisConfig, protocolSchedule);
               } else {
-                return GenesisState.fromConfig(dataStorageConfiguration, genesisConfig, protocolSchedule));
+                return GenesisState.fromConfig(
+                    dataStorageConfiguration, genesisConfig, protocolSchedule);
               }
             });
   }

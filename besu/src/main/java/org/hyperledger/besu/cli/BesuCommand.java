@@ -90,6 +90,7 @@ import org.hyperledger.besu.config.CheckpointConfigOptions;
 import org.hyperledger.besu.config.GenesisConfig;
 import org.hyperledger.besu.config.GenesisConfigOptions;
 import org.hyperledger.besu.config.MergeConfiguration;
+import org.hyperledger.besu.config.OptimismGenesisConfig;
 import org.hyperledger.besu.controller.BesuController;
 import org.hyperledger.besu.controller.BesuControllerBuilder;
 import org.hyperledger.besu.crypto.Blake2bfMessageDigest;
@@ -1610,11 +1611,10 @@ public class BesuCommand implements DefaultCommandValues, Runnable {
     } else if (genesisFile != null) {
       effectiveGenesisFile = GenesisConfig.fromSource(genesisConfigSource(genesisFile));
     } else if (OP_SEPOLIA.equals(network) || OP_MAINNET.equals(network)) {
-      effectiveGenesisFile = OpGenesisConfig.fromResource(network.getGenesisFile());
+      effectiveGenesisFile = OptimismGenesisConfig.fromResource(network.getGenesisFile());
     } else {
       effectiveGenesisFile =
-          GenesisConfig.fromResource(
-              Optional.ofNullable(network).orElse(MAINNET).getGenesisFile());
+          GenesisConfig.fromResource(Optional.ofNullable(network).orElse(MAINNET).getGenesisFile());
     }
     return effectiveGenesisFile.withOverrides(genesisConfigOverrides);
   }

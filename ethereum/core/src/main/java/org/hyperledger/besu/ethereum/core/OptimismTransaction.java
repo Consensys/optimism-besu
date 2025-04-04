@@ -65,6 +65,7 @@ public class OptimismTransaction extends Transaction
       final Optional<List<VersionedHash>> versionedHashes,
       final Optional<BlobsWithCommitments> blobsWithCommitments,
       final Optional<List<CodeDelegation>> maybeCodeDelegationList,
+      final Optional<Bytes> rawRlp,
       final Optional<Hash> sourceHash,
       final Optional<Wei> mint,
       final Optional<Boolean> isSystemTx) {
@@ -86,7 +87,8 @@ public class OptimismTransaction extends Transaction
         chainId,
         versionedHashes,
         blobsWithCommitments,
-        maybeCodeDelegationList);
+        maybeCodeDelegationList,
+        rawRlp);
     this.sourceHash = sourceHash;
     this.mint = mint;
     this.isSystemTx = isSystemTx;
@@ -219,6 +221,7 @@ public class OptimismTransaction extends Transaction
           Optional.ofNullable(versionedHashes),
           Optional.empty(),
           codeDelegationAuthorizations,
+          Optional.ofNullable(rawRlp),
           Optional.ofNullable(sourceHash),
           Optional.ofNullable(mint),
           Optional.ofNullable(isSystemTx));

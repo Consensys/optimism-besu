@@ -72,7 +72,7 @@ public class JsonGenesisConfigOptions implements GenesisConfigOptions {
    * @param configRoot the config root
    * @return the json genesis config options
    */
-  public static JsonOptimismGenesisConfigOptions fromJsonObject(final ObjectNode configRoot) {
+  public static JsonGenesisConfigOptions fromJsonObject(final ObjectNode configRoot) {
     return fromJsonObjectWithOverrides(configRoot, emptyMap());
   }
 
@@ -83,12 +83,11 @@ public class JsonGenesisConfigOptions implements GenesisConfigOptions {
    * @param configOverrides the config overrides
    * @return the json genesis config options
    */
-  static JsonOptimismGenesisConfigOptions fromJsonObjectWithOverrides(
+  static JsonGenesisConfigOptions fromJsonObjectWithOverrides(
       final ObjectNode configRoot, final Map<String, String> configOverrides) {
     final TransitionsConfigOptions transitionsConfigOptions;
     transitionsConfigOptions = loadTransitionsFrom(configRoot);
-    return new JsonOptimismGenesisConfigOptions(
-        configRoot, configOverrides, transitionsConfigOptions);
+    return new JsonGenesisConfigOptions(configRoot, configOverrides, transitionsConfigOptions);
   }
 
   private static TransitionsConfigOptions loadTransitionsFrom(final ObjectNode parentNode) {

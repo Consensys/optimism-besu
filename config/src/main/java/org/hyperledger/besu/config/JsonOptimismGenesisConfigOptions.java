@@ -14,7 +14,10 @@
  */
 package org.hyperledger.besu.config;
 
+import static java.util.Collections.emptyMap;
+
 import java.util.Map;
+import java.util.Optional;
 import java.util.OptionalLong;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -25,6 +28,43 @@ public class JsonOptimismGenesisConfigOptions extends JsonGenesisConfigOptions
     implements OptimismGenesisConfigOptions {
 
   private static final String OPTIMISM_CONFIG_KEY = "optimism";
+
+  private static final String TRANSITIONS_CONFIG_KEY = "transitions";
+
+  /**
+   * From json object json genesis config options.
+   *
+   * @param configRoot the config root
+   * @return the json genesis config options
+   */
+  public static JsonOptimismGenesisConfigOptions fromJsonObject(final ObjectNode configRoot) {
+    return fromJsonObjectWithOverrides(configRoot, emptyMap());
+  }
+
+  /**
+   * From json object with overrides json genesis config options.
+   *
+   * @param configRoot the config root
+   * @param configOverrides the config overrides
+   * @return the json genesis config options
+   */
+  static JsonOptimismGenesisConfigOptions fromJsonObjectWithOverrides(
+      final ObjectNode configRoot, final Map<String, String> configOverrides) {
+    final TransitionsConfigOptions transitionsConfigOptions;
+    transitionsConfigOptions = loadTransitionsFrom(configRoot);
+    return new JsonOptimismGenesisConfigOptions(
+        configRoot, configOverrides, transitionsConfigOptions);
+  }
+
+  private static TransitionsConfigOptions loadTransitionsFrom(final ObjectNode parentNode) {
+    final Optional<ObjectNode> transitionsNode =
+        JsonUtil.getObjectNode(parentNode, TRANSITIONS_CONFIG_KEY);
+    if (transitionsNode.isEmpty()) {
+      return new TransitionsConfigOptions(JsonUtil.createEmptyObjectNode());
+    }
+
+    return new TransitionsConfigOptions(transitionsNode.get());
+  }
 
   /**
    * Instantiates a new Optimism genesis options.
@@ -227,16 +267,6 @@ public class JsonOptimismGenesisConfigOptions extends JsonGenesisConfigOptions
     getMystiqueBlockNumber().ifPresent(l -> builder.put("mystiqueBlock", l));
     getSpiralBlockNumber().ifPresent(l -> builder.put("spiralBlock", l));
 
-    // optimism fork blocks
-    getBedrockBlock().ifPresent(l -> builder.put("bedrockBlock", l));
-    getRegolithTime().ifPresent(l -> builder.put("regolithTime", l));
-    getCanyonTime().ifPresent(l -> builder.put("canyonTime", l));
-    getEcotoneTime().ifPresent(l -> builder.put("ecotoneTime", l));
-    getFjordTime().ifPresent(l -> builder.put("fjordTime", l));
-    getHoloceneTime().ifPresent(l -> builder.put("holoceneTime", l));
-    getGraniteTime().ifPresent(l -> builder.put("graniteTime", l));
-    getInteropTime().ifPresent(l -> builder.put("interopTime", l));
-
     getContractSizeLimit().ifPresent(l -> builder.put("contractSizeLimit", l));
     getEvmStackSize().ifPresent(l -> builder.put("evmstacksize", l));
     getEcip1017EraRounds().ifPresent(l -> builder.put("ecip1017EraRounds", l));
@@ -247,6 +277,19 @@ public class JsonOptimismGenesisConfigOptions extends JsonGenesisConfigOptions
     getConsolidationRequestContractAddress()
         .ifPresent(l -> builder.put("consolidationRequestContractAddress", l));
 
+    if (isClique()) {
+      builder.put("clique", getCliqueConfigOptions().asMap());
+    }
+    if (isEthHash()) {
+      builder.put("ethash", getEthashConfigOptions().asMap());
+    }
+    if (isIbft2()) {
+      builder.put("ibft2", getBftConfigOptions().asMap());
+    }
+    if (isQbft()) {
+      builder.put("qbft", getQbftConfigOptions().asMap());
+    }
+
     if (isZeroBaseFee()) {
       builder.put("zeroBaseFee", true);
     }
@@ -254,6 +297,11 @@ public class JsonOptimismGenesisConfigOptions extends JsonGenesisConfigOptions
     if (isFixedBaseFee()) {
       builder.put("fixedBaseFee", true);
     }
+
+    if (getBlobScheduleOptions().isPresent()) {
+      builder.put("blobSchedule", getBlobScheduleOptions().get().asMap());
+    }
+
     if (isOptimism()) {
       builder.put("optimism", getOptimismConfigOptions().asMap());
     }

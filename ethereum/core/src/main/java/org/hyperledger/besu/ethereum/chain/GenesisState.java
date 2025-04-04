@@ -54,7 +54,7 @@ public class GenesisState {
   protected final Block block;
   protected final GenesisConfig genesisConfig;
 
-  private GenesisState(final Block block, final GenesisConfig genesisConfig) {
+  GenesisState(final Block block, final GenesisConfig genesisConfig) {
     this.block = block;
     this.genesisConfig = genesisConfig;
   }
@@ -140,7 +140,7 @@ public class GenesisState {
     return new GenesisState(block, genesisConfig);
   }
 
-  private static BlockBody buildBody(final GenesisConfig config) {
+  public static BlockBody buildBody(final GenesisConfig config) {
     final Optional<List<Withdrawal>> withdrawals =
         isShanghaiAtGenesis(config) ? Optional.of(emptyList()) : Optional.empty();
 
@@ -177,7 +177,7 @@ public class GenesisState {
     target.persist(rootHeader);
   }
 
-  private static Hash calculateGenesisStateRoot(
+  static Hash calculateGenesisStateRoot(
       final DataStorageConfiguration dataStorageConfiguration, final GenesisConfig genesisConfig) {
     try (var worldState = createGenesisWorldState(dataStorageConfiguration)) {
       writeAccountsTo(worldState, genesisConfig.streamAllocations(), null);
@@ -187,7 +187,7 @@ public class GenesisState {
     }
   }
 
-  private static BlockHeader buildHeader(
+  public static BlockHeader buildHeader(
       final GenesisConfig genesis,
       final Hash genesisRootHash,
       final ProtocolSchedule protocolSchedule) {

@@ -21,9 +21,9 @@ import java.util.Map;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 /** Interface for Optimism genesis config file. */
-public class OpGenesisConfigFile extends GenesisConfigFile {
+public class OptimismGenesisConfig extends GenesisConfig {
 
-  OpGenesisConfigFile(final GenesisReader loader) {
+  OptimismGenesisConfig(final GenesisReader loader) {
     super(loader);
   }
 
@@ -32,8 +32,8 @@ public class OpGenesisConfigFile extends GenesisConfigFile {
    *
    * @return the genesis config file
    */
-  public static OpGenesisConfigFile mainnet() {
-    return fromSource(GenesisConfigFile.class.getResource("/optimism-mainnet.json"));
+  public static OptimismGenesisConfig mainnet() {
+    return fromSource(GenesisConfig.class.getResource("/optimism-mainnet.json"));
   }
 
   /**
@@ -42,7 +42,7 @@ public class OpGenesisConfigFile extends GenesisConfigFile {
    * @param jsonSource the URL
    * @return the genesis config file
    */
-  public static OpGenesisConfigFile fromSource(final URL jsonSource) {
+  public static OptimismGenesisConfig fromSource(final URL jsonSource) {
     return fromConfig(JsonUtil.objectNodeFromURL(jsonSource, false));
   }
 
@@ -52,8 +52,8 @@ public class OpGenesisConfigFile extends GenesisConfigFile {
    * @param resourceName the resource name
    * @return the genesis config file
    */
-  public static OpGenesisConfigFile fromResource(final String resourceName) {
-    return fromConfig(GenesisConfigFile.class.getResource(resourceName));
+  public static OptimismGenesisConfig fromResource(final String resourceName) {
+    return fromConfig(GenesisConfig.class.getResource(resourceName));
   }
 
   /**
@@ -62,8 +62,8 @@ public class OpGenesisConfigFile extends GenesisConfigFile {
    * @param jsonSource the json string
    * @return the genesis config file
    */
-  public static OpGenesisConfigFile fromConfig(final URL jsonSource) {
-    return new OpGenesisConfigFile(new GenesisReader.FromURL(jsonSource));
+  public static OptimismGenesisConfig fromConfig(final URL jsonSource) {
+    return new OptimismGenesisConfig(new GenesisReader.FromURL(jsonSource));
   }
 
   /**
@@ -72,7 +72,7 @@ public class OpGenesisConfigFile extends GenesisConfigFile {
    * @param json the json string
    * @return the genesis config file
    */
-  public static OpGenesisConfigFile fromConfig(final String json) {
+  public static OptimismGenesisConfig fromConfig(final String json) {
     return fromConfig(JsonUtil.objectNodeFromString(json, false));
   }
 
@@ -82,8 +82,8 @@ public class OpGenesisConfigFile extends GenesisConfigFile {
    * @param config the config
    * @return the genesis config file
    */
-  public static OpGenesisConfigFile fromConfig(final ObjectNode config) {
-    return new OpGenesisConfigFile(new GenesisReader.FromObjectNode(config));
+  public static OptimismGenesisConfig fromConfig(final ObjectNode config) {
+    return new OptimismGenesisConfig(new GenesisReader.FromObjectNode(config));
   }
 
   /**
