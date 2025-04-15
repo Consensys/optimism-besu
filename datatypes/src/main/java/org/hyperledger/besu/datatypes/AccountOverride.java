@@ -14,6 +14,10 @@
  */
 package org.hyperledger.besu.datatypes;
 
+import static com.google.common.base.Preconditions.checkState;
+
+import org.hyperledger.besu.datatypes.parameters.UnsignedLongParameter;
+
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -26,24 +30,30 @@ import org.slf4j.LoggerFactory;
 
 /** Account Override parameter class */
 @JsonIgnoreProperties(ignoreUnknown = true)
-@JsonDeserialize(builder = AccountOverride.Builder.class)
-public class AccountOverride {
-  private static final Logger LOG = LoggerFactory.getLogger(AccountOverride.class);
+@JsonDeserialize(builder = StateOverride.Builder.class)
+public class StateOverride {
+  private static final Logger LOG = LoggerFactory.getLogger(StateOverride.class);
 
   private final Optional<Wei> balance;
   private final Optional<Long> nonce;
   private final Optional<String> code;
+  private final Optional<Map<String, String>> state;
   private final Optional<Map<String, String>> stateDiff;
+  private final Optional<Address> movePrecompileToAddress;
 
-  private AccountOverride(
+  private StateOverride(
       final Optional<Wei> balance,
       final Optional<Long> nonce,
       final Optional<String> code,
-      final Optional<Map<String, String>> stateDiff) {
+      final Optional<Map<String, String>> state,
+      final Optional<Map<String, String>> stateDiff,
+      final Optional<Address> movePrecompileToAddress) {
     this.balance = balance;
     this.nonce = nonce;
     this.code = code;
+    this.state = state;
     this.stateDiff = stateDiff;
+    this.movePrecompileToAddress = movePrecompileToAddress;
   }
 
   /**
@@ -78,16 +88,46 @@ public class AccountOverride {
    *
    * @return the state override map if present
    */
+  public Optional<Map<String, String>> getState() {
+    return state;
+  }
+
+  /**
+   * Gets the state diff override map
+   *
+   * @return the state diff override map if present
+   */
   public Optional<Map<String, String>> getStateDiff() {
     return stateDiff;
   }
 
+  /**
+   * Gets the new address for the pre-compiled contract
+   *
+   * @return the new address for the pre-compiled contract if present
+   */
+  public Optional<Address> getMovePrecompileToAddress() {
+    return movePrecompileToAddress;
+  }
+
+  /**
+   * Creates a new builder for State overrides
+   *
+   * @return the builder
+   */
+  public static Builder builder() {
+    return new Builder();
+  }
+
   /** Builder class for Account overrides */
+  @JsonIgnoreProperties(ignoreUnknown = true)
   public static class Builder {
     private Optional<Wei> balance = Optional.empty();
     private Optional<Long> nonce = Optional.empty();
     private Optional<String> code = Optional.empty();
+    private Optional<Map<String, String>> state = Optional.empty();
     private Optional<Map<String, String>> stateDiff = Optional.empty();
+    private Optional<Address> movePrecompileToAddress = Optional.empty();
 
     /** Default constructor. */
     public Builder() {}
@@ -106,11 +146,11 @@ public class AccountOverride {
     /**
      * Sets the nonce override
      *
-     * @param nonce the nonce override
+     * @param nonce the nonce override in hex
      * @return the builder
      */
-    public Builder withNonce(final Long nonce) {
-      this.nonce = Optional.ofNullable(nonce);
+    public Builder withNonce(final UnsignedLongParameter nonce) {
+      this.nonce = Optional.of(nonce.getValue());
       return this;
     }
 
@@ -126,6 +166,17 @@ public class AccountOverride {
     }
 
     /**
+     * Sets the state override
+     *
+     * @param state the map of state overrides
+     * @return the builder
+     */
+    public Builder withState(final Map<String, String> state) {
+      this.state = Optional.ofNullable(state);
+      return this;
+    }
+
+    /**
      * Sets the state diff override
      *
      * @param stateDiff the map of state overrides
@@ -137,12 +188,24 @@ public class AccountOverride {
     }
 
     /**
+     * Sets the new address for the pre-compiled contract
+     *
+     * @param newPrecompileAddress the new address for the pre-compile contract
+     * @return the builder
+     */
+    public Builder withMovePrecompileToAddress(final Address newPrecompileAddress) {
+      this.movePrecompileToAddress = Optional.ofNullable(newPrecompileAddress);
+      return this;
+    }
+
+    /**
      * build the account override from the builder
      *
      * @return account override
      */
-    public AccountOverride build() {
-      return new AccountOverride(balance, nonce, code, stateDiff);
+    public StateOverride build() {
+      checkState(state.isEmpty() || stateDiff.isEmpty(), "Cannot set both state and stateDiff");
+      return new StateOverride(balance, nonce, code, state, stateDiff, movePrecompileToAddress);
     }
   }
 
@@ -169,29 +232,34 @@ public class AccountOverride {
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    final AccountOverride accountOverride = (AccountOverride) o;
-    return balance.equals(accountOverride.balance)
-        && nonce.equals(accountOverride.nonce)
-        && code.equals(accountOverride.code)
-        && stateDiff.equals(accountOverride.stateDiff);
+    final StateOverride stateOverride = (StateOverride) o;
+    return balance.equals(stateOverride.balance)
+        && nonce.equals(stateOverride.nonce)
+        && code.equals(stateOverride.code)
+        && state.equals(stateOverride.state)
+        && stateDiff.equals(stateOverride.stateDiff);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(balance, nonce, code, stateDiff);
+    return Objects.hash(balance, nonce, code, state, stateDiff);
   }
 
   @Override
   public String toString() {
-    return "AccountOverride{"
+    return "StateOverride{"
         + "balance="
         + balance
         + ", nonce="
         + nonce
         + ", code="
         + code
+        + ", state="
+        + state
         + ", stateDiff="
         + stateDiff
+        + ", movePrecompileToAddress="
+        + movePrecompileToAddress
         + '}';
   }
 }

@@ -12,31 +12,28 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-package org.hyperledger.besu.datatypes;
+package org.hyperledger.besu.consensus.qbft.core.types;
 
-import java.util.Optional;
+import org.hyperledger.besu.datatypes.Address;
 
-/** Transaction interface for Optimism Stack Spec. */
-public interface OptimismTransaction extends Transaction {
+import java.util.Collection;
 
-  /**
-   * Return the source hash for this transaction.
-   *
-   * @return optional source hash
-   */
-  Optional<Hash> getSourceHash();
+/** The interface Validator provider. */
+public interface QbftValidatorProvider {
 
   /**
-   * Return the mint value for this transaction.
+   * Gets validators after block.
    *
-   * @return optional mint value
+   * @param header the header
+   * @return the validators after block
    */
-  Optional<Wei> getMint();
+  Collection<Address> getValidatorsAfterBlock(QbftBlockHeader header);
 
   /**
-   * Return the is system transaction flag for this transaction.
+   * Gets validators for block.
    *
-   * @return optional is system transaction flag
+   * @param header the header
+   * @return the validators for block
    */
-  Optional<Boolean> getIsSystemTx();
+  Collection<Address> getValidatorsForBlock(QbftBlockHeader header);
 }

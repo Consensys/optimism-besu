@@ -187,6 +187,13 @@ public interface Transaction {
   Bytes getPayload();
 
   /**
+   * The number of zero bytes in the payload.
+   *
+   * @return the number of zero bytes in the payload
+   */
+  long getPayloadZeroBytes();
+
+  /**
    * Returns the type of the transaction.
    *
    * @return the type of the transaction
@@ -229,11 +236,25 @@ public interface Transaction {
   Bytes encoded();
 
   /**
+   * Returns the preimage of the transaction with the proper encoding
+   *
+   * @return the encoded preimage of the transaction as Bytes
+   */
+  Bytes encodedPreimage();
+
+  /**
    * Returns the size in bytes of the encoded transaction.
    *
    * @return the size in bytes of the encoded transaction.
    */
   int getSize();
+
+  /**
+   * Returns whether the transaction is a contract creation
+   *
+   * @return {@code true} if this is a contract-creation transaction; otherwise {@code false}
+   */
+  boolean isContractCreation();
 
   /**
    * Returns the code delegations if this transaction is a 7702 transaction.
@@ -243,9 +264,9 @@ public interface Transaction {
   Optional<List<CodeDelegation>> getCodeDelegationList();
 
   /**
-   * Returns the size of the authorization list.
+   * Returns the size of the code delegation list.
    *
-   * @return the size of the authorization list
+   * @return the size of the code delegation list
    */
   int codeDelegationListSize();
 }
