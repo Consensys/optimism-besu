@@ -12,10 +12,10 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-package org.hyperledger.besu.ethereum.trie.diffbased.bonsai.worldview;
+package org.hyperledger.besu.ethereum.trie.pathbased.bonsai.worldview;
 
 import static org.hyperledger.besu.ethereum.storage.keyvalue.KeyValueSegmentIdentifier.TRIE_BRANCH_STORAGE;
-import static org.hyperledger.besu.ethereum.trie.diffbased.common.worldview.DiffBasedWorldView.encodeTrieValue;
+import static org.hyperledger.besu.ethereum.trie.pathbased.common.worldview.PathBasedWorldView.encodeTrieValue;
 
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.Hash;
@@ -25,19 +25,20 @@ import org.hyperledger.besu.ethereum.trie.MerkleTrie;
 import org.hyperledger.besu.ethereum.trie.MerkleTrieException;
 import org.hyperledger.besu.ethereum.trie.NoOpMerkleTrie;
 import org.hyperledger.besu.ethereum.trie.NodeLoader;
-import org.hyperledger.besu.ethereum.trie.diffbased.bonsai.BonsaiAccount;
-import org.hyperledger.besu.ethereum.trie.diffbased.bonsai.BonsaiWorldStateProvider;
-import org.hyperledger.besu.ethereum.trie.diffbased.bonsai.cache.BonsaiCachedMerkleTrieLoader;
-import org.hyperledger.besu.ethereum.trie.diffbased.bonsai.storage.BonsaiWorldStateKeyValueStorage;
-import org.hyperledger.besu.ethereum.trie.diffbased.bonsai.storage.BonsaiWorldStateLayerStorage;
-import org.hyperledger.besu.ethereum.trie.diffbased.common.DiffBasedValue;
-import org.hyperledger.besu.ethereum.trie.diffbased.common.cache.DiffBasedCachedWorldStorageManager;
-import org.hyperledger.besu.ethereum.trie.diffbased.common.storage.DiffBasedWorldStateKeyValueStorage;
-import org.hyperledger.besu.ethereum.trie.diffbased.common.trielog.TrieLogManager;
-import org.hyperledger.besu.ethereum.trie.diffbased.common.worldview.DiffBasedWorldState;
-import org.hyperledger.besu.ethereum.trie.diffbased.common.worldview.DiffBasedWorldStateConfig;
-import org.hyperledger.besu.ethereum.trie.diffbased.common.worldview.accumulator.DiffBasedWorldStateUpdateAccumulator;
-import org.hyperledger.besu.ethereum.trie.diffbased.common.worldview.accumulator.preload.StorageConsumingMap;
+import org.hyperledger.besu.ethereum.trie.pathbased.bonsai.BonsaiAccount;
+import org.hyperledger.besu.ethereum.trie.pathbased.bonsai.BonsaiWorldStateProvider;
+import org.hyperledger.besu.ethereum.trie.pathbased.bonsai.cache.BonsaiCachedMerkleTrieLoader;
+import org.hyperledger.besu.ethereum.trie.pathbased.bonsai.cache.NoopBonsaiCachedMerkleTrieLoader;
+import org.hyperledger.besu.ethereum.trie.pathbased.bonsai.storage.BonsaiWorldStateKeyValueStorage;
+import org.hyperledger.besu.ethereum.trie.pathbased.bonsai.storage.BonsaiWorldStateLayerStorage;
+import org.hyperledger.besu.ethereum.trie.pathbased.common.PathBasedValue;
+import org.hyperledger.besu.ethereum.trie.pathbased.common.cache.PathBasedCachedWorldStorageManager;
+import org.hyperledger.besu.ethereum.trie.pathbased.common.storage.PathBasedWorldStateKeyValueStorage;
+import org.hyperledger.besu.ethereum.trie.pathbased.common.trielog.TrieLogManager;
+import org.hyperledger.besu.ethereum.trie.pathbased.common.worldview.PathBasedWorldState;
+import org.hyperledger.besu.ethereum.trie.pathbased.common.worldview.WorldStateConfig;
+import org.hyperledger.besu.ethereum.trie.pathbased.common.worldview.accumulator.PathBasedWorldStateUpdateAccumulator;
+import org.hyperledger.besu.ethereum.trie.pathbased.common.worldview.accumulator.preload.StorageConsumingMap;
 import org.hyperledger.besu.ethereum.trie.patricia.StoredMerklePatriciaTrie;
 import org.hyperledger.besu.evm.account.Account;
 import org.hyperledger.besu.evm.internal.EvmConfiguration;
@@ -47,6 +48,7 @@ import org.hyperledger.besu.plugin.services.storage.SegmentedKeyValueStorageTran
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
@@ -58,48 +60,32 @@ import org.apache.tuweni.bytes.Bytes32;
 import org.apache.tuweni.rlp.RLP;
 import org.apache.tuweni.units.bigints.UInt256;
 
-public class BonsaiWorldState extends DiffBasedWorldState {
+public class BonsaiWorldState extends PathBasedWorldState {
 
-  protected final BonsaiCachedMerkleTrieLoader bonsaiCachedMerkleTrieLoader;
+  protected BonsaiCachedMerkleTrieLoader bonsaiCachedMerkleTrieLoader;
 
   public BonsaiWorldState(
       final BonsaiWorldStateProvider archive,
       final BonsaiWorldStateKeyValueStorage worldStateKeyValueStorage,
       final EvmConfiguration evmConfiguration,
-      final DiffBasedWorldStateConfig diffBasedWorldStateConfig) {
+      final WorldStateConfig worldStateConfig) {
     this(
         worldStateKeyValueStorage,
         archive.getCachedMerkleTrieLoader(),
         archive.getCachedWorldStorageManager(),
         archive.getTrieLogManager(),
         evmConfiguration,
-        diffBasedWorldStateConfig);
-  }
-
-  public BonsaiWorldState(
-      final BonsaiWorldState worldState,
-      final BonsaiCachedMerkleTrieLoader cachedMerkleTrieLoader) {
-    this(
-        new BonsaiWorldStateLayerStorage(worldState.getWorldStateStorage()),
-        cachedMerkleTrieLoader,
-        worldState.cachedWorldStorageManager,
-        worldState.trieLogManager,
-        worldState.accumulator.getEvmConfiguration(),
-        new DiffBasedWorldStateConfig(worldState.worldStateConfig));
+        worldStateConfig);
   }
 
   public BonsaiWorldState(
       final BonsaiWorldStateKeyValueStorage worldStateKeyValueStorage,
       final BonsaiCachedMerkleTrieLoader bonsaiCachedMerkleTrieLoader,
-      final DiffBasedCachedWorldStorageManager cachedWorldStorageManager,
+      final PathBasedCachedWorldStorageManager cachedWorldStorageManager,
       final TrieLogManager trieLogManager,
       final EvmConfiguration evmConfiguration,
-      final DiffBasedWorldStateConfig diffBasedWorldStateConfig) {
-    super(
-        worldStateKeyValueStorage,
-        cachedWorldStorageManager,
-        trieLogManager,
-        diffBasedWorldStateConfig);
+      final WorldStateConfig worldStateConfig) {
+    super(worldStateKeyValueStorage, cachedWorldStorageManager, trieLogManager, worldStateConfig);
     this.bonsaiCachedMerkleTrieLoader = bonsaiCachedMerkleTrieLoader;
     this.worldStateKeyValueStorage = worldStateKeyValueStorage;
     this.setAccumulator(
@@ -126,8 +112,8 @@ public class BonsaiWorldState extends DiffBasedWorldState {
 
   @Override
   protected Hash calculateRootHash(
-      final Optional<DiffBasedWorldStateKeyValueStorage.Updater> maybeStateUpdater,
-      final DiffBasedWorldStateUpdateAccumulator<?> worldStateUpdater) {
+      final Optional<PathBasedWorldStateKeyValueStorage.Updater> maybeStateUpdater,
+      final PathBasedWorldStateUpdateAccumulator<?> worldStateUpdater) {
     return internalCalculateRootHash(
         maybeStateUpdater.map(BonsaiWorldStateKeyValueStorage.Updater.class::cast),
         (BonsaiWorldStateUpdateAccumulator) worldStateUpdater);
@@ -141,7 +127,7 @@ public class BonsaiWorldState extends DiffBasedWorldState {
 
     // This must be done before updating the accounts so
     // that we can get the storage state hash
-    Stream<Map.Entry<Address, StorageConsumingMap<StorageSlotKey, DiffBasedValue<UInt256>>>>
+    Stream<Map.Entry<Address, StorageConsumingMap<StorageSlotKey, PathBasedValue<UInt256>>>>
         storageStream = worldStateUpdater.getStorageToUpdate().entrySet().stream();
     if (maybeStateUpdater.isEmpty()) {
       storageStream =
@@ -185,10 +171,10 @@ public class BonsaiWorldState extends DiffBasedWorldState {
       final Optional<BonsaiWorldStateKeyValueStorage.Updater> maybeStateUpdater,
       final BonsaiWorldStateUpdateAccumulator worldStateUpdater,
       final MerkleTrie<Bytes, Bytes> accountTrie) {
-    for (final Map.Entry<Address, DiffBasedValue<BonsaiAccount>> accountUpdate :
+    for (final Map.Entry<Address, PathBasedValue<BonsaiAccount>> accountUpdate :
         worldStateUpdater.getAccountsToUpdate().entrySet()) {
       final Bytes accountKey = accountUpdate.getKey();
-      final DiffBasedValue<BonsaiAccount> bonsaiValue = accountUpdate.getValue();
+      final PathBasedValue<BonsaiAccount> bonsaiValue = accountUpdate.getValue();
       final BonsaiAccount updatedAccount = bonsaiValue.getUpdated();
       try {
         if (updatedAccount == null) {
@@ -218,7 +204,7 @@ public class BonsaiWorldState extends DiffBasedWorldState {
       final BonsaiWorldStateUpdateAccumulator worldStateUpdater) {
     maybeStateUpdater.ifPresent(
         bonsaiUpdater -> {
-          for (final Map.Entry<Address, DiffBasedValue<Bytes>> codeUpdate :
+          for (final Map.Entry<Address, PathBasedValue<Bytes>> codeUpdate :
               worldStateUpdater.getCodeToUpdate().entrySet()) {
             final Bytes updatedCode = codeUpdate.getValue().getUpdated();
             final Hash accountHash = codeUpdate.getKey().addressHash();
@@ -248,12 +234,12 @@ public class BonsaiWorldState extends DiffBasedWorldState {
   private void updateAccountStorageState(
       final Optional<BonsaiWorldStateKeyValueStorage.Updater> maybeStateUpdater,
       final BonsaiWorldStateUpdateAccumulator worldStateUpdater,
-      final Map.Entry<Address, StorageConsumingMap<StorageSlotKey, DiffBasedValue<UInt256>>>
+      final Map.Entry<Address, StorageConsumingMap<StorageSlotKey, PathBasedValue<UInt256>>>
           storageAccountUpdate) {
     final Address updatedAddress = storageAccountUpdate.getKey();
     final Hash updatedAddressHash = updatedAddress.addressHash();
     if (worldStateUpdater.getAccountsToUpdate().containsKey(updatedAddress)) {
-      final DiffBasedValue<BonsaiAccount> accountValue =
+      final PathBasedValue<BonsaiAccount> accountValue =
           worldStateUpdater.getAccountsToUpdate().get(updatedAddress);
       final BonsaiAccount accountOriginal = accountValue.getPrior();
       final Hash storageRoot =
@@ -269,7 +255,7 @@ public class BonsaiWorldState extends DiffBasedWorldState {
               storageRoot);
 
       // for manicured tries and composting, collect branches here (not implemented)
-      for (final Map.Entry<StorageSlotKey, DiffBasedValue<UInt256>> storageUpdate :
+      for (final Map.Entry<StorageSlotKey, PathBasedValue<UInt256>> storageUpdate :
           storageAccountUpdate.getValue().entrySet()) {
         final Hash slotHash = storageUpdate.getKey().getSlotHash();
         final UInt256 updatedStorage = storageUpdate.getValue().getUpdated();
@@ -335,24 +321,34 @@ public class BonsaiWorldState extends DiffBasedWorldState {
               (location, key) -> getStorageTrieNode(addressHash, location, key),
               oldAccount.getStorageRoot());
       try {
-        final StorageConsumingMap<StorageSlotKey, DiffBasedValue<UInt256>> storageToDelete =
-            worldStateUpdater.getStorageToUpdate().get(address);
+        StorageConsumingMap<StorageSlotKey, PathBasedValue<UInt256>> storageToDelete = null;
         Map<Bytes32, Bytes> entriesToDelete = storageTrie.entriesFrom(Bytes32.ZERO, 256);
         while (!entriesToDelete.isEmpty()) {
-          entriesToDelete.forEach(
-              (k, v) -> {
-                final StorageSlotKey storageSlotKey =
-                    new StorageSlotKey(Hash.wrap(k), Optional.empty());
-                final UInt256 slotValue = UInt256.fromBytes(Bytes32.leftPad(RLP.decodeValue(v)));
-                maybeStateUpdater.ifPresent(
-                    bonsaiUpdater ->
-                        bonsaiUpdater.removeStorageValueBySlotHash(
-                            address.addressHash(), storageSlotKey.getSlotHash()));
-                storageToDelete
+          if (storageToDelete == null) {
+            storageToDelete =
+                worldStateUpdater
+                    .getStorageToUpdate()
                     .computeIfAbsent(
-                        storageSlotKey, key -> new DiffBasedValue<>(slotValue, null, true))
-                    .setPrior(slotValue);
-              });
+                        address,
+                        add ->
+                            new StorageConsumingMap<>(
+                                address,
+                                new ConcurrentHashMap<>(),
+                                worldStateUpdater.getStoragePreloader()));
+          }
+          for (Map.Entry<Bytes32, Bytes> slot : entriesToDelete.entrySet()) {
+            final StorageSlotKey storageSlotKey =
+                new StorageSlotKey(Hash.wrap(slot.getKey()), Optional.empty());
+            final UInt256 slotValue =
+                UInt256.fromBytes(Bytes32.leftPad(RLP.decodeValue(slot.getValue())));
+            maybeStateUpdater.ifPresent(
+                bonsaiUpdater ->
+                    bonsaiUpdater.removeStorageValueBySlotHash(
+                        address.addressHash(), storageSlotKey.getSlotHash()));
+            storageToDelete
+                .computeIfAbsent(storageSlotKey, key -> new PathBasedValue<>(slotValue, null, true))
+                .setPrior(slotValue);
+          }
           entriesToDelete.keySet().forEach(storageTrie::remove);
           if (entriesToDelete.size() == 256) {
             entriesToDelete = storageTrie.entriesFrom(Bytes32.ZERO, 256);
@@ -448,10 +444,14 @@ public class BonsaiWorldState extends DiffBasedWorldState {
   }
 
   @Override
-  public MutableWorldState freeze() {
-    this.worldStateConfig.setFrozen(true);
+  public MutableWorldState freezeStorage() {
+    this.isStorageFrozen = true;
     this.worldStateKeyValueStorage = new BonsaiWorldStateLayerStorage(getWorldStateStorage());
     return this;
+  }
+
+  public void disableCacheMerkleTrieLoader() {
+    this.bonsaiCachedMerkleTrieLoader = new NoopBonsaiCachedMerkleTrieLoader();
   }
 
   private MerkleTrie<Bytes, Bytes> createTrie(final NodeLoader nodeLoader, final Bytes32 rootHash) {

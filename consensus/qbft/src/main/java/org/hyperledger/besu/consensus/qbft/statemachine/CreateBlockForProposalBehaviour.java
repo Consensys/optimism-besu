@@ -1,5 +1,5 @@
 /*
- * Copyright ConsenSys AG.
+ * Copyright contributors to Besu.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -12,19 +12,21 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-package org.hyperledger.besu.consensus.qbft.statemachine;
+package org.hyperledger.besu.consensus.qbft.core.types;
 
-import org.hyperledger.besu.ethereum.core.Block;
-
-/** The functional interface Create block for proposal behaviour. */
-@FunctionalInterface
-public interface CreateBlockForProposalBehaviour {
+/** Minimal QBFT interface for reading data from the blockchain. */
+public interface QbftBlockchain {
+  /**
+   * Returns the chain head header.
+   *
+   * @return the header.
+   */
+  QbftBlockHeader getChainHeadHeader();
 
   /**
-   * Create block.
+   * Returns the chain head block number.
    *
-   * @param headerTimeStampSeconds the header time stamp seconds
-   * @return the block
+   * @return the block number.
    */
-  Block create(long headerTimeStampSeconds);
+  long getChainHeadBlockNumber();
 }

@@ -30,6 +30,7 @@ import org.hyperledger.besu.util.number.Percentage;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.Locale;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -413,7 +414,7 @@ public class TransactionPoolOptionsTest
   @Test
   public void maxPrioritizedTxsPerTypeWrongTxType() {
     internalTestFailure(
-        "Invalid value for option '--tx-pool-max-prioritized-by-type' (MAP<TYPE,INTEGER>): expected one of [FRONTIER, ACCESS_LIST, EIP1559, BLOB, OPTIMISM_DEPOSIT, DELEGATE_CODE] (case-insensitive) but was 'WRONG_TYPE'",
+        "Invalid value for option '--tx-pool-max-prioritized-by-type' (MAP<TYPE,INTEGER>): expected one of [FRONTIER, ACCESS_LIST, EIP1559, BLOB, DELEGATE_CODE] (case-insensitive) but was 'WRONG_TYPE'",
         "--tx-pool-max-prioritized-by-type",
         "WRONG_TYPE=1");
   }
@@ -452,6 +453,58 @@ public class TransactionPoolOptionsTest
         "Invalid value for option '--tx-pool-min-score': '" + overflowMinScore + "' is not a byte",
         "--tx-pool-min-score",
         overflowMinScore);
+  }
+
+  @Test
+  public void defaultForgetEvictedTxsWithSequencedIsTrue() {
+    internalTestSuccess(
+        config -> assertThat(config.getUnstable().getPeerTrackerForgetEvictedTxs()).isTrue(),
+        "--tx-pool",
+        SEQUENCED.name().toLowerCase(Locale.ROOT));
+  }
+
+  @Test
+  public void explicitlyDisablingForgetEvictedTxsWithSequenced() {
+    internalTestSuccess(
+        config -> assertThat(config.getUnstable().getPeerTrackerForgetEvictedTxs()).isFalse(),
+        "--tx-pool",
+        SEQUENCED.name().toLowerCase(Locale.ROOT),
+        "--Xpeer-tracker-forget-evicted-txs=false");
+  }
+
+  @Test
+  public void fallbackValueForgetEvictedTxsWithSequenced() {
+    internalTestSuccess(
+        config -> assertThat(config.getUnstable().getPeerTrackerForgetEvictedTxs()).isTrue(),
+        "--tx-pool",
+        SEQUENCED.name().toLowerCase(Locale.ROOT),
+        "--Xpeer-tracker-forget-evicted-txs");
+  }
+
+  @Test
+  public void defaultForgetEvictedTxsWithLayeredIsFalse() {
+    internalTestSuccess(
+        config -> assertThat(config.getUnstable().getPeerTrackerForgetEvictedTxs()).isFalse(),
+        "--tx-pool",
+        LAYERED.name().toLowerCase(Locale.ROOT));
+  }
+
+  @Test
+  public void explicitlyEnablingForgetEvictedTxsWithLayered() {
+    internalTestSuccess(
+        config -> assertThat(config.getUnstable().getPeerTrackerForgetEvictedTxs()).isTrue(),
+        "--tx-pool",
+        LAYERED.name().toLowerCase(Locale.ROOT),
+        "--Xpeer-tracker-forget-evicted-txs=true");
+  }
+
+  @Test
+  public void fallbackValueForgetEvictedTxsWithLayered() {
+    internalTestSuccess(
+        config -> assertThat(config.getUnstable().getPeerTrackerForgetEvictedTxs()).isTrue(),
+        "--tx-pool",
+        LAYERED.name().toLowerCase(Locale.ROOT),
+        "--Xpeer-tracker-forget-evicted-txs");
   }
 
   @Override

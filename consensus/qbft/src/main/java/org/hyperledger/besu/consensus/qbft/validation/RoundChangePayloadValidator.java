@@ -12,11 +12,11 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-package org.hyperledger.besu.consensus.qbft.validation;
+package org.hyperledger.besu.consensus.qbft.core.validation;
 
 import org.hyperledger.besu.consensus.common.bft.payload.SignedData;
-import org.hyperledger.besu.consensus.qbft.payload.PreparedRoundMetadata;
-import org.hyperledger.besu.consensus.qbft.payload.RoundChangePayload;
+import org.hyperledger.besu.consensus.qbft.core.payload.PreparedRoundMetadata;
+import org.hyperledger.besu.consensus.qbft.core.payload.RoundChangePayload;
 import org.hyperledger.besu.datatypes.Address;
 
 import java.util.Collection;

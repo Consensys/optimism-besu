@@ -14,16 +14,18 @@
  */
 package org.hyperledger.besu.ethereum.transaction;
 
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.hyperledger.besu.ethereum.mainnet.feemarket.ExcessBlobGasCalculator.calculateExcessBlobGasForParent;
+import static org.hyperledger.besu.ethereum.trie.pathbased.common.provider.WorldStateQueryParams.withBlockHeaderAndNoUpdateNodeHead;
 
 import org.hyperledger.besu.crypto.SECPSignature;
 import org.hyperledger.besu.crypto.SignatureAlgorithm;
 import org.hyperledger.besu.crypto.SignatureAlgorithmFactory;
-import org.hyperledger.besu.datatypes.AccountOverride;
-import org.hyperledger.besu.datatypes.AccountOverrideMap;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.BlobGas;
 import org.hyperledger.besu.datatypes.Hash;
+import org.hyperledger.besu.datatypes.StateOverride;
+import org.hyperledger.besu.datatypes.StateOverrideMap;
 import org.hyperledger.besu.datatypes.Wei;
 import org.hyperledger.besu.ethereum.chain.Blockchain;
 import org.hyperledger.besu.ethereum.core.BlockHeader;
@@ -37,16 +39,17 @@ import org.hyperledger.besu.ethereum.mainnet.ProtocolSchedule;
 import org.hyperledger.besu.ethereum.mainnet.ProtocolSpec;
 import org.hyperledger.besu.ethereum.mainnet.TransactionValidationParams;
 import org.hyperledger.besu.ethereum.processing.TransactionProcessingResult;
-import org.hyperledger.besu.ethereum.vm.CachingBlockHashLookup;
 import org.hyperledger.besu.ethereum.vm.DebugOperationTracer;
 import org.hyperledger.besu.ethereum.worldstate.WorldStateArchive;
 import org.hyperledger.besu.evm.account.Account;
 import org.hyperledger.besu.evm.account.MutableAccount;
+import org.hyperledger.besu.evm.blockhash.BlockHashLookup;
 import org.hyperledger.besu.evm.tracing.OperationTracer;
 import org.hyperledger.besu.evm.worldstate.WorldUpdater;
 
 import java.math.BigInteger;
 import java.util.Optional;
+import java.util.function.BiFunction;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 
@@ -86,6 +89,7 @@ public class TransactionSimulator {
   private final WorldStateArchive worldStateArchive;
   private final ProtocolSchedule protocolSchedule;
   private final MiningConfiguration miningConfiguration;
+  private final SimulationTransactionProcessorFactory simulationTransactionProcessorFactory;
   private final long rpcGasCap;
 
   public TransactionSimulator(
@@ -99,6 +103,8 @@ public class TransactionSimulator {
     this.protocolSchedule = protocolSchedule;
     this.miningConfiguration = miningConfiguration;
     this.rpcGasCap = rpcGasCap;
+    this.simulationTransactionProcessorFactory =
+        new SimulationTransactionProcessorFactory(protocolSchedule);
   }
 
   public Optional<TransactionSimulatorResult> process(
@@ -132,7 +138,7 @@ public class TransactionSimulator {
 
   public Optional<TransactionSimulatorResult> process(
       final CallParameter callParams,
-      final Optional<AccountOverrideMap> maybeStateOverrides,
+      final Optional<StateOverrideMap> maybeStateOverrides,
       final TransactionValidationParams transactionValidationParams,
       final OperationTracer operationTracer,
       final BlockHeader blockHeader) {
@@ -147,7 +153,7 @@ public class TransactionSimulator {
 
   public Optional<TransactionSimulatorResult> processOnPending(
       final CallParameter callParams,
-      final Optional<AccountOverrideMap> maybeStateOverrides,
+      final Optional<StateOverrideMap> maybeStateOverrides,
       final TransactionValidationParams transactionValidationParams,
       final OperationTracer operationTracer,
       final ProcessableBlockHeader pendingBlockHeader) {
@@ -169,14 +175,14 @@ public class TransactionSimulator {
           operationTracer,
           pendingBlockHeader,
           updater,
-          Address.ZERO);
+          pendingBlockHeader.getCoinbase());
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
   }
 
   public ProcessableBlockHeader simulatePendingBlockHeader() {
-    final long timestamp = System.currentTimeMillis();
+    final long timestamp = MILLISECONDS.toSeconds(System.currentTimeMillis());
     final var chainHeadHeader = blockchain.getChainHeadHeader();
     final ProtocolSpec protocolSpec =
         protocolSchedule.getForNextBlockHeader(chainHeadHeader, timestamp);
@@ -206,7 +212,7 @@ public class TransactionSimulator {
 
     final Hash parentStateRoot = parentHeader.getStateRoot();
     return worldStateArchive
-        .getMutable(parentHeader, false)
+        .getWorldState(withBlockHeaderAndNoUpdateNodeHead(parentHeader))
         .orElseThrow(
             () ->
                 new IllegalArgumentException(
@@ -270,7 +276,7 @@ public class TransactionSimulator {
    */
   public <U> Optional<U> process(
       final CallParameter callParams,
-      final Optional<AccountOverrideMap> maybeStateOverrides,
+      final Optional<StateOverrideMap> maybeStateOverrides,
       final TransactionValidationParams transactionValidationParams,
       final OperationTracer operationTracer,
       final PreCloseStateHandler<U> preWorldStateCloseGuard,
@@ -333,7 +339,7 @@ public class TransactionSimulator {
 
   private MutableWorldState getWorldState(final BlockHeader header) {
     return worldStateArchive
-        .getMutable(header, false)
+        .getWorldState(withBlockHeaderAndNoUpdateNodeHead(header))
         .orElseThrow(
             () ->
                 new IllegalArgumentException(
@@ -343,14 +349,67 @@ public class TransactionSimulator {
   @Nonnull
   public Optional<TransactionSimulatorResult> processWithWorldUpdater(
       final CallParameter callParams,
-      final Optional<AccountOverrideMap> maybeStateOverrides,
+      final Optional<StateOverrideMap> maybeStateOverrides,
       final TransactionValidationParams transactionValidationParams,
       final OperationTracer operationTracer,
       final ProcessableBlockHeader processableHeader,
       final WorldUpdater updater,
       final Address miningBeneficiary) {
-    final ProtocolSpec protocolSpec = protocolSchedule.getByBlockHeader(processableHeader);
 
+    final long simulationGasCap =
+        calculateSimulationGasCap(callParams.getGasLimit(), processableHeader.getGasLimit());
+
+    MainnetTransactionProcessor transactionProcessor =
+        simulationTransactionProcessorFactory.getTransactionProcessor(
+            processableHeader, maybeStateOverrides);
+
+    BiFunction<ProtocolSpec, Optional<BlockHeader>, Wei> blobGasPricePerGasSupplier =
+        (protocolSpec, maybeParentHeader) -> {
+          if (transactionValidationParams.isAllowExceedingBalance()) {
+            return Wei.ZERO;
+          }
+          return protocolSpec
+              .getFeeMarket()
+              .blobGasPricePerGas(
+                  maybeParentHeader
+                      .map(parent -> calculateExcessBlobGasForParent(protocolSpec, parent))
+                      .orElse(BlobGas.ZERO));
+        };
+
+    final ProtocolSpec protocolSpec = protocolSchedule.getByBlockHeader(processableHeader);
+    final BlockHashLookup blockHashLookup =
+        protocolSpec.getBlockHashProcessor().createBlockHashLookup(blockchain, processableHeader);
+    return processWithWorldUpdater(
+        callParams,
+        maybeStateOverrides,
+        transactionValidationParams,
+        operationTracer,
+        processableHeader,
+        updater,
+        miningBeneficiary,
+        simulationGasCap,
+        transactionProcessor,
+        blobGasPricePerGasSupplier,
+        blockHashLookup,
+        () -> FAKE_SIGNATURE);
+  }
+
+  @Nonnull
+  public Optional<TransactionSimulatorResult> processWithWorldUpdater(
+      final CallParameter callParams,
+      final Optional<StateOverrideMap> maybeStateOverrides,
+      final TransactionValidationParams transactionValidationParams,
+      final OperationTracer operationTracer,
+      final ProcessableBlockHeader processableHeader,
+      final WorldUpdater updater,
+      final Address miningBeneficiary,
+      final long simulationGasCap,
+      final MainnetTransactionProcessor transactionProcessor,
+      final BiFunction<ProtocolSpec, Optional<BlockHeader>, Wei> blobGasPricePerGasCalculator,
+      final BlockHashLookup blockHashLookup,
+      final Supplier<SECPSignature> signatureSupplier) {
+
+    final ProtocolSpec protocolSpec = protocolSchedule.getByBlockHeader(processableHeader);
     final Address senderAddress =
         callParams.getFrom() != null ? callParams.getFrom() : DEFAULT_FROM;
 
@@ -368,31 +427,23 @@ public class TransactionSimulator {
     }
     if (maybeStateOverrides.isPresent()) {
       for (Address accountToOverride : maybeStateOverrides.get().keySet()) {
-        final AccountOverride overrides = maybeStateOverrides.get().get(accountToOverride);
+        final StateOverride overrides = maybeStateOverrides.get().get(accountToOverride);
         applyOverrides(updater.getOrCreate(accountToOverride), overrides);
       }
     }
 
-    final Account sender = updater.get(senderAddress);
-    final long nonce = sender != null ? sender.getNonce() : 0L;
-
-    final long simulationGasCap =
-        calculateSimulationGasCap(callParams.getGasLimit(), blockHeaderToProcess.getGasLimit());
-
-    final MainnetTransactionProcessor transactionProcessor =
-        protocolSchedule.getByBlockHeader(blockHeaderToProcess).getTransactionProcessor();
+    final long nonce =
+        callParams
+            .getNonce()
+            .orElseGet(
+                () ->
+                    Optional.ofNullable(updater.get(senderAddress))
+                        .map(Account::getNonce)
+                        .orElse(0L));
 
     final Optional<BlockHeader> maybeParentHeader =
-        blockchain.getBlockHeader(blockHeaderToProcess.getParentHash());
-    final Wei blobGasPrice =
-        transactionValidationParams.isAllowExceedingBalance()
-            ? Wei.ZERO
-            : protocolSpec
-                .getFeeMarket()
-                .blobGasPricePerGas(
-                    maybeParentHeader
-                        .map(parent -> calculateExcessBlobGasForParent(protocolSpec, parent))
-                        .orElse(BlobGas.ZERO));
+        blockchain.getBlockHeader(processableHeader.getParentHash());
+    final Wei blobGasPrice = blobGasPricePerGasCalculator.apply(protocolSpec, maybeParentHeader);
 
     final Optional<Transaction> maybeTransaction =
         buildTransaction(
@@ -402,7 +453,8 @@ public class TransactionSimulator {
             senderAddress,
             nonce,
             simulationGasCap,
-            blobGasPrice);
+            blobGasPrice,
+            signatureSupplier);
     if (maybeTransaction.isEmpty()) {
       return Optional.empty();
     }
@@ -414,7 +466,7 @@ public class TransactionSimulator {
             blockHeaderToProcess,
             transaction,
             miningBeneficiary,
-            new CachingBlockHashLookup(blockHeaderToProcess, blockchain),
+            blockHashLookup,
             false,
             transactionValidationParams,
             operationTracer,
@@ -424,13 +476,21 @@ public class TransactionSimulator {
   }
 
   @VisibleForTesting
-  protected void applyOverrides(final MutableAccount account, final AccountOverride override) {
+  protected static void applyOverrides(final MutableAccount account, final StateOverride override) {
     LOG.debug("applying overrides to state for account {}", account.getAddress());
     override.getNonce().ifPresent(account::setNonce);
-    if (override.getBalance().isPresent()) {
-      account.setBalance(override.getBalance().get());
-    }
-    override.getCode().ifPresent(n -> account.setCode(Bytes.fromHexString(n)));
+    override.getBalance().ifPresent(account::setBalance);
+    override.getCode().ifPresent(code -> account.setCode(Bytes.fromHexString(code)));
+    override
+        .getState()
+        .ifPresent(
+            d -> {
+              account.clearStorage();
+              d.forEach(
+                  (key, value) ->
+                      account.setStorageValue(
+                          UInt256.fromHexString(key), UInt256.fromHexString(value)));
+            });
     override
         .getStateDiff()
         .ifPresent(
@@ -441,8 +501,7 @@ public class TransactionSimulator {
                             UInt256.fromHexString(key), UInt256.fromHexString(value))));
   }
 
-  private long calculateSimulationGasCap(
-      final long userProvidedGasLimit, final long blockGasLimit) {
+  public long calculateSimulationGasCap(final long userProvidedGasLimit, final long blockGasLimit) {
     final long simulationGasCap;
 
     // when not set gas limit is -1
@@ -459,10 +518,17 @@ public class TransactionSimulator {
       }
     } else {
       if (rpcGasCap > 0) {
-        LOG.trace(
-            "No user provided gas limit, setting simulation gas cap to the value of rpc-gas-cap {}",
-            rpcGasCap);
-        simulationGasCap = rpcGasCap;
+        if (blockGasLimit > 0) {
+          LOG.trace(
+              "No user provided gas limit, setting simulation gas cap to the value of min(rpc-gas-cap,blockGasLimit) {}",
+              rpcGasCap);
+          simulationGasCap = Math.min(rpcGasCap, blockGasLimit);
+        } else {
+          LOG.trace(
+              "No user provided gas limit, setting simulation gas cap to the value of rpc-gas-cap {}",
+              rpcGasCap);
+          simulationGasCap = rpcGasCap;
+        }
       } else {
         simulationGasCap = blockGasLimit;
         LOG.trace(
@@ -480,7 +546,8 @@ public class TransactionSimulator {
       final Address senderAddress,
       final long nonce,
       final long gasLimit,
-      final Wei blobGasPrice) {
+      final Wei blobGasPrice,
+      final Supplier<SECPSignature> signatureSupplier) {
 
     final Wei value = callParams.getValue() != null ? callParams.getValue() : Wei.ZERO;
     final Bytes payload = callParams.getPayload() != null ? callParams.getPayload() : Bytes.EMPTY;
@@ -493,7 +560,7 @@ public class TransactionSimulator {
             .sender(senderAddress)
             .value(value)
             .payload(payload)
-            .signature(FAKE_SIGNATURE);
+            .signature(signatureSupplier.get());
 
     // Set access list if present
     callParams.getAccessList().ifPresent(transactionBuilder::accessList);
@@ -551,7 +618,7 @@ public class TransactionSimulator {
   public Optional<Boolean> doesAddressExistAtHead(final Address address) {
     final BlockHeader header = blockchain.getChainHeadHeader();
     try (final MutableWorldState worldState =
-        worldStateArchive.getMutable(header, false).orElseThrow()) {
+        worldStateArchive.getWorldState(withBlockHeaderAndNoUpdateNodeHead(header)).orElseThrow()) {
       return doesAddressExist(worldState, address, header);
     } catch (final Exception ex) {
       return Optional.empty();
@@ -582,20 +649,31 @@ public class TransactionSimulator {
 
   private boolean shouldSetMaxFeePerGas(
       final CallParameter callParams, final ProcessableBlockHeader header) {
+
+    // Return false if chain ID is not present
     if (protocolSchedule.getChainId().isEmpty()) {
       return false;
     }
 
+    // Return false if base fee is not present
     if (header.getBaseFee().isEmpty()) {
       return false;
     }
 
+    // Return true if blob gas price should be set
     if (shouldSetBlobGasPrice(callParams)) {
       return true;
     }
 
-    // only set maxFeePerGas and maxPriorityFeePerGas if they are present, otherwise transaction
-    // will be considered EIP-1559 transaction even if the simulation is for a legacy transaction
+    // Return true if all gas price parameters are empty
+    if (callParams.getMaxPriorityFeePerGas().isEmpty()
+        && callParams.getMaxFeePerGas().isEmpty()
+        && callParams.getGasPrice() == null) {
+      return true;
+    }
+
+    // Return true if either maxPriorityFeePerGas or maxFeePerGas is present
+    // This ensures the transaction is considered EIP-1559 only if these parameters are present
     return callParams.getMaxPriorityFeePerGas().isPresent()
         || callParams.getMaxFeePerGas().isPresent();
   }

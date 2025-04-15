@@ -12,7 +12,9 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-package org.hyperledger.besu.ethereum.trie.diffbased.common;
+package org.hyperledger.besu.ethereum.trie.pathbased.common.provider;
+
+import static org.hyperledger.besu.ethereum.trie.pathbased.common.provider.WorldStateQueryParams.withBlockHeaderAndNoUpdateNodeHead;
 
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.Hash;
@@ -22,12 +24,12 @@ import org.hyperledger.besu.ethereum.core.MutableWorldState;
 import org.hyperledger.besu.ethereum.proof.WorldStateProof;
 import org.hyperledger.besu.ethereum.proof.WorldStateProofProvider;
 import org.hyperledger.besu.ethereum.trie.MerkleTrieException;
-import org.hyperledger.besu.ethereum.trie.diffbased.common.cache.DiffBasedCachedWorldStorageManager;
-import org.hyperledger.besu.ethereum.trie.diffbased.common.storage.DiffBasedWorldStateKeyValueStorage;
-import org.hyperledger.besu.ethereum.trie.diffbased.common.trielog.TrieLogManager;
-import org.hyperledger.besu.ethereum.trie.diffbased.common.worldview.DiffBasedWorldState;
-import org.hyperledger.besu.ethereum.trie.diffbased.common.worldview.DiffBasedWorldStateConfig;
-import org.hyperledger.besu.ethereum.trie.diffbased.common.worldview.accumulator.DiffBasedWorldStateUpdateAccumulator;
+import org.hyperledger.besu.ethereum.trie.pathbased.common.cache.PathBasedCachedWorldStorageManager;
+import org.hyperledger.besu.ethereum.trie.pathbased.common.storage.PathBasedWorldStateKeyValueStorage;
+import org.hyperledger.besu.ethereum.trie.pathbased.common.trielog.TrieLogManager;
+import org.hyperledger.besu.ethereum.trie.pathbased.common.worldview.PathBasedWorldState;
+import org.hyperledger.besu.ethereum.trie.pathbased.common.worldview.WorldStateConfig;
+import org.hyperledger.besu.ethereum.trie.pathbased.common.worldview.accumulator.PathBasedWorldStateUpdateAccumulator;
 import org.hyperledger.besu.ethereum.worldstate.WorldStateArchive;
 import org.hyperledger.besu.ethereum.worldstate.WorldStateStorageCoordinator;
 import org.hyperledger.besu.evm.worldstate.WorldState;
@@ -44,62 +46,59 @@ import org.apache.tuweni.units.bigints.UInt256;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public abstract class DiffBasedWorldStateProvider implements WorldStateArchive {
+public abstract class PathBasedWorldStateProvider implements WorldStateArchive {
 
-  private static final Logger LOG = LoggerFactory.getLogger(DiffBasedWorldStateProvider.class);
+  private static final Logger LOG = LoggerFactory.getLogger(PathBasedWorldStateProvider.class);
 
   protected final Blockchain blockchain;
 
   protected final TrieLogManager trieLogManager;
-  protected DiffBasedCachedWorldStorageManager cachedWorldStorageManager;
-  protected DiffBasedWorldState persistedState;
+  protected PathBasedCachedWorldStorageManager cachedWorldStorageManager;
+  protected PathBasedWorldState headWorldState;
+  protected final PathBasedWorldStateKeyValueStorage worldStateKeyValueStorage;
+  // Configuration that will be shared by all instances of world state at their creation
+  protected final WorldStateConfig worldStateConfig;
 
-  protected final DiffBasedWorldStateKeyValueStorage worldStateKeyValueStorage;
-  protected final DiffBasedWorldStateConfig defaultWorldStateConfig;
-
-  public DiffBasedWorldStateProvider(
-      final DiffBasedWorldStateKeyValueStorage worldStateKeyValueStorage,
+  public PathBasedWorldStateProvider(
+      final PathBasedWorldStateKeyValueStorage worldStateKeyValueStorage,
       final Blockchain blockchain,
       final Optional<Long> maxLayersToLoad,
       final ServiceManager pluginContext) {
-
-    this.worldStateKeyValueStorage = worldStateKeyValueStorage;
-    // TODO: de-dup constructors
-    this.trieLogManager =
+    this(
+        worldStateKeyValueStorage,
+        blockchain,
         new TrieLogManager(
             blockchain,
             worldStateKeyValueStorage,
-            maxLayersToLoad.orElse(DiffBasedCachedWorldStorageManager.RETAINED_LAYERS),
-            pluginContext);
-    this.blockchain = blockchain;
-    this.defaultWorldStateConfig = new DiffBasedWorldStateConfig();
+            maxLayersToLoad.orElse(PathBasedCachedWorldStorageManager.RETAINED_LAYERS),
+            pluginContext));
   }
 
-  public DiffBasedWorldStateProvider(
-      final DiffBasedWorldStateKeyValueStorage worldStateKeyValueStorage,
+  public PathBasedWorldStateProvider(
+      final PathBasedWorldStateKeyValueStorage worldStateKeyValueStorage,
       final Blockchain blockchain,
       final TrieLogManager trieLogManager) {
 
     this.worldStateKeyValueStorage = worldStateKeyValueStorage;
-    // TODO: de-dup constructors
     this.trieLogManager = trieLogManager;
     this.blockchain = blockchain;
-    this.defaultWorldStateConfig = new DiffBasedWorldStateConfig();
+    this.worldStateConfig = WorldStateConfig.newBuilder().build();
+    ;
   }
 
   protected void provideCachedWorldStorageManager(
-      final DiffBasedCachedWorldStorageManager cachedWorldStorageManager) {
+      final PathBasedCachedWorldStorageManager cachedWorldStorageManager) {
     this.cachedWorldStorageManager = cachedWorldStorageManager;
   }
 
-  protected void loadPersistedState(final DiffBasedWorldState persistedState) {
-    this.persistedState = persistedState;
+  protected void loadHeadWorldState(final PathBasedWorldState headWorldState) {
+    this.headWorldState = headWorldState;
     blockchain
-        .getBlockHeader(persistedState.getWorldStateBlockHash())
+        .getBlockHeader(headWorldState.getWorldStateBlockHash())
         .ifPresent(
             blockHeader ->
                 this.cachedWorldStorageManager.addCachedLayer(
-                    blockHeader, persistedState.getWorldStateRootHash(), persistedState));
+                    blockHeader, headWorldState.getWorldStateRootHash(), headWorldState));
   }
 
   @Override
@@ -108,8 +107,8 @@ public abstract class DiffBasedWorldStateProvider implements WorldStateArchive {
         .getWorldState(blockHash)
         .or(
             () -> {
-              if (blockHash.equals(persistedState.blockHash())) {
-                return Optional.of(persistedState);
+              if (blockHash.equals(headWorldState.blockHash())) {
+                return Optional.of(headWorldState);
               } else {
                 return Optional.empty();
               }
@@ -120,41 +119,121 @@ public abstract class DiffBasedWorldStateProvider implements WorldStateArchive {
   @Override
   public boolean isWorldStateAvailable(final Hash rootHash, final Hash blockHash) {
     return cachedWorldStorageManager.contains(blockHash)
-        || persistedState.blockHash().equals(blockHash)
+        || headWorldState.blockHash().equals(blockHash)
         || worldStateKeyValueStorage.isWorldStateAvailable(rootHash, blockHash);
   }
 
+  /**
+   * Gets a mutable world state based on the provided query parameters.
+   *
+   * <p>This method checks if the world state is configured to be stateful. If it is, it retrieves
+   * the full world state using the provided query parameters. If the world state is not configured
+   * to be full, the stateless one will be returned.
+   *
+   * <p>The method follows these steps: 1. Check if the world state is configured to be stateful. 2.
+   * If true, call {@link #getFullWorldState(WorldStateQueryParams)} with the query parameters. 3.
+   * If false, throw a RuntimeException indicating that stateless mode is not yet available.
+   *
+   * @param queryParams the query parameters
+   * @return the mutable world state, if available
+   * @throws RuntimeException if the world state is not configured to be stateful
+   */
   @Override
-  public Optional<MutableWorldState> getMutable(
-      final BlockHeader blockHeader, final boolean shouldPersistState) {
-    if (shouldPersistState) {
-      return getMutable(blockHeader.getStateRoot(), blockHeader.getHash());
+  public Optional<MutableWorldState> getWorldState(final WorldStateQueryParams queryParams) {
+    if (worldStateConfig.isStateful()) {
+      return getFullWorldState(queryParams);
     } else {
-      final BlockHeader chainHeadBlockHeader = blockchain.getChainHeadHeader();
-      if (chainHeadBlockHeader.getNumber() - blockHeader.getNumber()
-          >= trieLogManager.getMaxLayersToLoad()) {
-        LOG.warn(
-            "Exceeded the limit of historical blocks that can be loaded ({}). If you need to make older historical queries, configure your `--bonsai-historical-block-limit`.",
-            trieLogManager.getMaxLayersToLoad());
-        return Optional.empty();
-      }
-      return cachedWorldStorageManager
-          .getWorldState(blockHeader.getHash())
-          .or(() -> cachedWorldStorageManager.getNearestWorldState(blockHeader))
-          .or(() -> cachedWorldStorageManager.getHeadWorldState(blockchain::getBlockHeader))
-          .flatMap(worldState -> rollMutableStateToBlockHash(worldState, blockHeader.getHash()))
-          .map(MutableWorldState::freeze);
+      throw new RuntimeException("stateless mode is not yet available");
     }
   }
 
+  /**
+   * Gets the head world state.
+   *
+   * <p>This method returns the head world state, which is the most recent state of the world.
+   *
+   * @return the head world state
+   */
   @Override
-  public synchronized Optional<MutableWorldState> getMutable(
-      final Hash rootHash, final Hash blockHash) {
-    return rollMutableStateToBlockHash(persistedState, blockHash);
+  public MutableWorldState getWorldState() {
+    return headWorldState;
   }
 
-  Optional<MutableWorldState> rollMutableStateToBlockHash(
-      final DiffBasedWorldState mutableState, final Hash blockHash) {
+  /**
+   * Gets the full world state based on the provided query parameters.
+   *
+   * <p>This method determines whether to retrieve the full world state from the head or from the
+   * cache based on the query parameters. If the query parameters indicate that the world state
+   * should update the head, the method retrieves the full world state from the head. Otherwise, it
+   * retrieves the full world state from the cache.
+   *
+   * <p>The method follows these steps: 1. Check if the query parameters indicate that the world
+   * state should update the head. 2. If true, call {@link #getFullWorldStateFromHead(Hash)} with
+   * the block hash from the query parameters. 3. If false, call {@link
+   * #getFullWorldStateFromCache(BlockHeader)} with the block header from the query parameters.
+   *
+   * @param queryParams the query parameters
+   * @return the stateful world state, if available
+   */
+  private Optional<MutableWorldState> getFullWorldState(final WorldStateQueryParams queryParams) {
+    return queryParams.shouldWorldStateUpdateHead()
+        ? getFullWorldStateFromHead(queryParams.getBlockHash())
+        : getFullWorldStateFromCache(queryParams.getBlockHeader());
+  }
+
+  /**
+   * Gets the full world state from the head based on the provided block hash.
+   *
+   * <p>This method attempts to roll the head world state to the specified block hash. If the block
+   * hash matches the block hash of the head world state, the head world state is returned.
+   * Otherwise, the method attempts to roll the full world state to the specified block hash.
+   *
+   * <p>The method follows these steps: 1. Check if the block hash matches the block hash of the
+   * head world state. 2. If it matches, return the head world state. 3. If it does not match,
+   * attempt to roll the full world state to the specified block hash.
+   *
+   * @param blockHash the block hash
+   * @return the full world state, if available
+   */
+  private Optional<MutableWorldState> getFullWorldStateFromHead(final Hash blockHash) {
+    return rollFullWorldStateToBlockHash(headWorldState, blockHash);
+  }
+
+  /**
+   * Gets the full world state from the cache based on the provided block header.
+   *
+   * <p>This method attempts to retrieve the world state from the cache using the block header. If
+   * the block header is too old (i.e., the number of blocks between the chain head and the provided
+   * block header exceeds the maximum layers to load), a warning is logged and an empty Optional is
+   * returned.
+   *
+   * <p>The method follows these steps: 1. Check if the world state for the given block header is
+   * available in the cache. 2. If not, attempt to get the nearest world state from the cache. 3. If
+   * still not found, attempt to get the head world state. 4. If a world state is found, roll it to
+   * the block hash of the provided block header. 5. Freeze the world state and return it.
+   *
+   * @param blockHeader the block header
+   * @return the full world state, if available
+   */
+  private Optional<MutableWorldState> getFullWorldStateFromCache(final BlockHeader blockHeader) {
+    final BlockHeader chainHeadBlockHeader = blockchain.getChainHeadHeader();
+    if (chainHeadBlockHeader.getNumber() - blockHeader.getNumber()
+        >= trieLogManager.getMaxLayersToLoad()) {
+      LOG.warn(
+          "Exceeded the limit of historical blocks that can be loaded ({}). If you need to make older historical queries, configure your `--bonsai-historical-block-limit`.",
+          trieLogManager.getMaxLayersToLoad());
+      return Optional.empty();
+    }
+    return cachedWorldStorageManager
+        .getWorldState(blockHeader.getHash())
+        .or(() -> cachedWorldStorageManager.getNearestWorldState(blockHeader))
+        .or(() -> cachedWorldStorageManager.getHeadWorldState(blockchain::getBlockHeader))
+        .flatMap(worldState -> rollFullWorldStateToBlockHash(worldState, blockHeader.getHash()))
+        .map(MutableWorldState::freezeStorage);
+  }
+
+  private Optional<MutableWorldState> rollFullWorldStateToBlockHash(
+      final PathBasedWorldState mutableState, final Hash blockHash) {
     if (blockHash.equals(mutableState.blockHash())) {
       return Optional.of(mutableState);
     } else {
@@ -203,19 +282,19 @@ public abstract class DiffBasedWorldStateProvider implements WorldStateArchive {
         }
 
         // attempt the state rolling
-        final DiffBasedWorldStateUpdateAccumulator<?> diffBasedUpdater =
-            (DiffBasedWorldStateUpdateAccumulator<?>) mutableState.updater();
+        final PathBasedWorldStateUpdateAccumulator<?> pathBasedUpdater =
+            (PathBasedWorldStateUpdateAccumulator<?>) mutableState.updater();
         try {
           for (final TrieLog rollBack : rollBacks) {
             LOG.debug("Attempting Rollback of {}", rollBack.getBlockHash());
-            diffBasedUpdater.rollBack(rollBack);
+            pathBasedUpdater.rollBack(rollBack);
           }
           for (int i = rollForwards.size() - 1; i >= 0; i--) {
             final var forward = rollForwards.get(i);
             LOG.debug("Attempting Rollforward of {}", rollForwards.get(i).getBlockHash());
-            diffBasedUpdater.rollForward(forward);
+            pathBasedUpdater.rollForward(forward);
           }
-          diffBasedUpdater.commit();
+          pathBasedUpdater.commit();
 
           mutableState.persist(blockchain.getBlockHeader(blockHash).get());
 
@@ -229,7 +308,7 @@ public abstract class DiffBasedWorldStateProvider implements WorldStateArchive {
           throw re;
         } catch (final Exception e) {
           // if we fail we must clean up the updater
-          diffBasedUpdater.reset();
+          pathBasedUpdater.reset();
           LOG.atDebug()
               .setMessage("State rolling failed on {} for block hash {}")
               .addArgument(mutableState.getWorldStateStorage().getClass().getSimpleName())
@@ -251,21 +330,11 @@ public abstract class DiffBasedWorldStateProvider implements WorldStateArchive {
     }
   }
 
-  @Override
-  public MutableWorldState getMutable() {
-    return persistedState;
+  public WorldStateConfig getWorldStateSharedSpec() {
+    return worldStateConfig;
   }
 
-  public DiffBasedWorldStateConfig getDefaultWorldStateConfig() {
-    return defaultWorldStateConfig;
-  }
-
-  public void disableTrie() {
-    defaultWorldStateConfig.setTrieDisabled(true);
-    worldStateKeyValueStorage.clearTrie();
-  }
-
-  public DiffBasedWorldStateKeyValueStorage getWorldStateKeyValueStorage() {
+  public PathBasedWorldStateKeyValueStorage getWorldStateKeyValueStorage() {
     return worldStateKeyValueStorage;
   }
 
@@ -273,16 +342,16 @@ public abstract class DiffBasedWorldStateProvider implements WorldStateArchive {
     return trieLogManager;
   }
 
-  public DiffBasedCachedWorldStorageManager getCachedWorldStorageManager() {
+  public PathBasedCachedWorldStorageManager getCachedWorldStorageManager() {
     return cachedWorldStorageManager;
   }
 
   @Override
   public void resetArchiveStateTo(final BlockHeader blockHeader) {
-    persistedState.resetWorldStateTo(blockHeader);
+    headWorldState.resetWorldStateTo(blockHeader);
     this.cachedWorldStorageManager.reset();
     this.cachedWorldStorageManager.addCachedLayer(
-        blockHeader, persistedState.getWorldStateRootHash(), persistedState);
+        blockHeader, headWorldState.getWorldStateRootHash(), headWorldState);
   }
 
   @Override
@@ -291,8 +360,9 @@ public abstract class DiffBasedWorldStateProvider implements WorldStateArchive {
       final Address accountAddress,
       final List<UInt256> accountStorageKeys,
       final Function<Optional<WorldStateProof>, ? extends Optional<U>> mapper) {
-    try (DiffBasedWorldState ws =
-        (DiffBasedWorldState) getMutable(blockHeader, false).orElse(null)) {
+    try (PathBasedWorldState ws =
+        (PathBasedWorldState)
+            getWorldState(withBlockHeaderAndNoUpdateNodeHead(blockHeader)).orElse(null)) {
       if (ws != null) {
         final WorldStateProofProvider worldStateProofProvider =
             new WorldStateProofProvider(

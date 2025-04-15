@@ -27,7 +27,6 @@ import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.Wei;
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.JsonRpcRequest;
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.JsonRpcRequestContext;
-import org.hyperledger.besu.ethereum.api.jsonrpc.internal.exception.InvalidJsonRpcParameters;
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.parameters.JsonCallParameter;
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.response.JsonRpcError;
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.response.JsonRpcErrorResponse;
@@ -51,7 +50,6 @@ import java.util.Optional;
 
 import org.apache.tuweni.bytes.Bytes;
 import org.apache.tuweni.bytes.Bytes32;
-import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -156,14 +154,16 @@ public class EthCreateAccessListTest {
   }
 
   @Test
-  public void shouldReturnGasEstimateErrorWhenGasPricePresentForEip1559Transaction() {
+  public void shouldNotErrorWhenGasPricePresentForEip1559Transaction() {
+    final Wei gasPrice = Wei.of(1000);
+    final List<AccessListEntry> expectedAccessList = new ArrayList<>();
     final JsonRpcRequestContext request =
-        ethCreateAccessListRequest(eip1559TransactionCallParameter(Optional.of(Wei.of(10))));
-    mockTransactionSimulatorResult(false, false, 1L, latestBlockHeader);
+        ethCreateAccessListRequest(eip1559TransactionCallParameter(Optional.of(gasPrice)));
+    mockTransactionSimulatorResult(true, false, 1L, latestBlockHeader);
 
-    Assertions.assertThatThrownBy(() -> method.response(request))
-        .isInstanceOf(InvalidJsonRpcParameters.class)
-        .hasMessageContaining("gasPrice cannot be used with maxFeePerGas or maxPriorityFeePerGas");
+    final JsonRpcResponse expectedResponse =
+        new JsonRpcSuccessResponse(null, new CreateAccessListResult(expectedAccessList, 1L));
+    assertThat(method.response(request)).usingRecursiveComparison().isEqualTo(expectedResponse);
   }
 
   @Test
@@ -211,8 +211,8 @@ public class EthCreateAccessListTest {
     // Create a 1559 call without access lists
     final JsonRpcRequestContext request =
         ethCreateAccessListRequest(eip1559TransactionCallParameter());
-    // Create a list with one access list entry
-    final List<AccessListEntry> expectedAccessList = createAccessList();
+    // Generate a random list with one access list entry
+    final List<AccessListEntry> expectedAccessList = generateRandomAccessList();
 
     // expect a list with the mocked access list
     final JsonRpcResponse expectedResponse =
@@ -230,8 +230,8 @@ public class EthCreateAccessListTest {
 
   @Test
   public void shouldReturnEmptyAccessListIfNoAccessedStorage() {
-    // Create a list with one enter
-    final List<AccessListEntry> accessListParam = createAccessList();
+    // Generate a random list with one access list entry
+    final List<AccessListEntry> accessListParam = generateRandomAccessList();
     // expect empty list
     final JsonRpcResponse expectedResponse =
         new JsonRpcSuccessResponse(null, new CreateAccessListResult(new ArrayList<>(), 1L));
@@ -248,9 +248,9 @@ public class EthCreateAccessListTest {
 
   @Test
   public void shouldReturnAccessListIfParameterAndSameAccessedStorage() {
-    // Create a list with one access list entry
-    final List<AccessListEntry> expectedAccessList = createAccessList();
-    // Create a 1559 call with the expected access lists
+    // Generate a random list with one access list entry
+    final List<AccessListEntry> expectedAccessList = generateRandomAccessList();
+    // Create a 1559 call with the expected access list
     final JsonRpcRequestContext request =
         ethCreateAccessListRequest(eip1559TransactionCallParameter(expectedAccessList));
 
@@ -270,14 +270,14 @@ public class EthCreateAccessListTest {
 
   @Test
   public void shouldReturnAccessListIfWithParameterAndDifferentAccessedStorage() {
-    // Create a list with one access list entry
-    final List<AccessListEntry> accessListParam = createAccessList();
+    // Generate a random list with one access list entry
+    final List<AccessListEntry> accessListParam = generateRandomAccessList();
     // Create a 1559 call with the accessListParam
     final JsonRpcRequestContext request =
         ethCreateAccessListRequest(eip1559TransactionCallParameter(accessListParam));
 
-    // Create a list with one access list entry
-    final List<AccessListEntry> expectedAccessList = createAccessList();
+    // Generate a different random list with one access list entry
+    final List<AccessListEntry> expectedAccessList = generateRandomAccessList();
 
     // expect a list with the mocked access list
     final JsonRpcResponse expectedResponse =
@@ -297,8 +297,8 @@ public class EthCreateAccessListTest {
   public void shouldReturnAccessListWhenBlockTagParamIsPresent() {
     final JsonRpcRequestContext request =
         ethCreateAccessListRequest(eip1559TransactionCallParameter(), "finalized");
-    // Create a list with one access list entry
-    final List<AccessListEntry> expectedAccessList = createAccessList();
+    // Generate a random list with one access list entry
+    final List<AccessListEntry> expectedAccessList = generateRandomAccessList();
 
     // expect a list with the mocked access list
     final JsonRpcResponse expectedResponse =
@@ -318,8 +318,8 @@ public class EthCreateAccessListTest {
   public void shouldReturnAccessListWhenBlockNumberParamIsPresent() {
     final JsonRpcRequestContext request =
         ethCreateAccessListRequest(eip1559TransactionCallParameter(), "0x0");
-    // Create a list with one access list entry
-    final List<AccessListEntry> expectedAccessList = createAccessList();
+    // Generate a random list with one access list entry
+    final List<AccessListEntry> expectedAccessList = generateRandomAccessList();
 
     // expect a list with the mocked access list
     final JsonRpcResponse expectedResponse =
@@ -414,7 +414,7 @@ public class EthCreateAccessListTest {
         .build();
   }
 
-  private List<AccessListEntry> createAccessList() {
+  private List<AccessListEntry> generateRandomAccessList() {
     return List.of(
         new AccessListEntry(Address.wrap(Bytes.random(Address.SIZE)), List.of(Bytes32.random())));
   }

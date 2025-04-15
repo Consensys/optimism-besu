@@ -12,26 +12,26 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-package org.hyperledger.besu.consensus.qbft.network;
+package org.hyperledger.besu.consensus.qbft.core.network;
 
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
 import org.hyperledger.besu.consensus.common.bft.network.ValidatorMulticaster;
 import org.hyperledger.besu.consensus.common.bft.payload.SignedData;
-import org.hyperledger.besu.consensus.qbft.messagedata.CommitMessageData;
-import org.hyperledger.besu.consensus.qbft.messagedata.PrepareMessageData;
-import org.hyperledger.besu.consensus.qbft.messagedata.ProposalMessageData;
-import org.hyperledger.besu.consensus.qbft.messagedata.RoundChangeMessageData;
-import org.hyperledger.besu.consensus.qbft.messagewrappers.Commit;
-import org.hyperledger.besu.consensus.qbft.messagewrappers.Prepare;
-import org.hyperledger.besu.consensus.qbft.messagewrappers.Proposal;
-import org.hyperledger.besu.consensus.qbft.messagewrappers.RoundChange;
-import org.hyperledger.besu.consensus.qbft.payload.MessageFactory;
-import org.hyperledger.besu.consensus.qbft.payload.PreparePayload;
-import org.hyperledger.besu.consensus.qbft.payload.RoundChangePayload;
-import org.hyperledger.besu.consensus.qbft.statemachine.PreparedCertificate;
+import org.hyperledger.besu.consensus.qbft.core.messagedata.CommitMessageData;
+import org.hyperledger.besu.consensus.qbft.core.messagedata.PrepareMessageData;
+import org.hyperledger.besu.consensus.qbft.core.messagedata.ProposalMessageData;
+import org.hyperledger.besu.consensus.qbft.core.messagedata.RoundChangeMessageData;
+import org.hyperledger.besu.consensus.qbft.core.messagewrappers.Commit;
+import org.hyperledger.besu.consensus.qbft.core.messagewrappers.Prepare;
+import org.hyperledger.besu.consensus.qbft.core.messagewrappers.Proposal;
+import org.hyperledger.besu.consensus.qbft.core.messagewrappers.RoundChange;
+import org.hyperledger.besu.consensus.qbft.core.payload.MessageFactory;
+import org.hyperledger.besu.consensus.qbft.core.payload.PreparePayload;
+import org.hyperledger.besu.consensus.qbft.core.payload.RoundChangePayload;
+import org.hyperledger.besu.consensus.qbft.core.statemachine.PreparedCertificate;
+import org.hyperledger.besu.consensus.qbft.core.types.QbftBlock;
 import org.hyperledger.besu.crypto.SECPSignature;
 import org.hyperledger.besu.datatypes.Hash;
-import org.hyperledger.besu.ethereum.core.Block;
 import org.hyperledger.besu.plugin.services.securitymodule.SecurityModuleException;
 
 import java.util.List;
@@ -70,7 +70,7 @@ public class QbftMessageTransmitter {
    */
   public void multicastProposal(
       final ConsensusRoundIdentifier roundIdentifier,
-      final Block block,
+      final QbftBlock block,
       final List<SignedData<RoundChangePayload>> roundChanges,
       final List<SignedData<PreparePayload>> prepares) {
     try {

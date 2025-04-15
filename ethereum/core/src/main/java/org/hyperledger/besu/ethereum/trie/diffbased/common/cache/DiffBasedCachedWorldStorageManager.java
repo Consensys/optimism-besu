@@ -12,18 +12,20 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-package org.hyperledger.besu.ethereum.trie.diffbased.common.cache;
+package org.hyperledger.besu.ethereum.trie.pathbased.common.cache;
+
+import static org.hyperledger.besu.ethereum.trie.pathbased.common.provider.WorldStateQueryParams.withBlockHeaderAndNoUpdateNodeHead;
 
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.ethereum.chain.Blockchain;
 import org.hyperledger.besu.ethereum.core.BlockHeader;
-import org.hyperledger.besu.ethereum.trie.diffbased.bonsai.worldview.BonsaiWorldState;
-import org.hyperledger.besu.ethereum.trie.diffbased.common.DiffBasedWorldStateProvider;
-import org.hyperledger.besu.ethereum.trie.diffbased.common.StorageSubscriber;
-import org.hyperledger.besu.ethereum.trie.diffbased.common.storage.DiffBasedLayeredWorldStateKeyValueStorage;
-import org.hyperledger.besu.ethereum.trie.diffbased.common.storage.DiffBasedWorldStateKeyValueStorage;
-import org.hyperledger.besu.ethereum.trie.diffbased.common.worldview.DiffBasedWorldState;
-import org.hyperledger.besu.ethereum.trie.diffbased.common.worldview.DiffBasedWorldStateConfig;
+import org.hyperledger.besu.ethereum.trie.pathbased.bonsai.worldview.BonsaiWorldState;
+import org.hyperledger.besu.ethereum.trie.pathbased.common.StorageSubscriber;
+import org.hyperledger.besu.ethereum.trie.pathbased.common.provider.PathBasedWorldStateProvider;
+import org.hyperledger.besu.ethereum.trie.pathbased.common.storage.PathBasedLayeredWorldStateKeyValueStorage;
+import org.hyperledger.besu.ethereum.trie.pathbased.common.storage.PathBasedWorldStateKeyValueStorage;
+import org.hyperledger.besu.ethereum.trie.pathbased.common.worldview.PathBasedWorldState;
+import org.hyperledger.besu.ethereum.trie.pathbased.common.worldview.WorldStateConfig;
 import org.hyperledger.besu.evm.internal.EvmConfiguration;
 
 import java.util.ArrayList;
@@ -34,7 +36,6 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
-import java.util.function.Supplier;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
@@ -42,65 +43,65 @@ import org.apache.tuweni.bytes.Bytes32;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public abstract class DiffBasedCachedWorldStorageManager implements StorageSubscriber {
+public abstract class PathBasedCachedWorldStorageManager implements StorageSubscriber {
   public static final long RETAINED_LAYERS = 512; // at least 256 + typical rollbacks
   private static final Logger LOG =
-      LoggerFactory.getLogger(DiffBasedCachedWorldStorageManager.class);
-  private final DiffBasedWorldStateProvider archive;
+      LoggerFactory.getLogger(PathBasedCachedWorldStorageManager.class);
+  private final PathBasedWorldStateProvider archive;
   private final EvmConfiguration evmConfiguration;
-  protected final Supplier<DiffBasedWorldStateConfig> defaultBonsaiWorldStateConfigSupplier;
+  protected final WorldStateConfig worldStateConfig;
   private final Cache<Hash, BlockHeader> stateRootToBlockHeaderCache =
       Caffeine.newBuilder()
           .maximumSize(RETAINED_LAYERS)
           .expireAfterWrite(100, TimeUnit.MINUTES)
           .build();
 
-  private final DiffBasedWorldStateKeyValueStorage rootWorldStateStorage;
-  private final Map<Bytes32, DiffBasedCachedWorldView> cachedWorldStatesByHash;
+  private final PathBasedWorldStateKeyValueStorage rootWorldStateStorage;
+  private final Map<Bytes32, PathBasedCachedWorldView> cachedWorldStatesByHash;
 
-  private DiffBasedCachedWorldStorageManager(
-      final DiffBasedWorldStateProvider archive,
-      final DiffBasedWorldStateKeyValueStorage worldStateKeyValueStorage,
-      final Map<Bytes32, DiffBasedCachedWorldView> cachedWorldStatesByHash,
+  private PathBasedCachedWorldStorageManager(
+      final PathBasedWorldStateProvider archive,
+      final PathBasedWorldStateKeyValueStorage worldStateKeyValueStorage,
+      final Map<Bytes32, PathBasedCachedWorldView> cachedWorldStatesByHash,
       final EvmConfiguration evmConfiguration,
-      final Supplier<DiffBasedWorldStateConfig> defaultBonsaiWorldStateConfigSupplier) {
+      final WorldStateConfig worldStateConfig) {
     worldStateKeyValueStorage.subscribe(this);
     this.rootWorldStateStorage = worldStateKeyValueStorage;
     this.cachedWorldStatesByHash = cachedWorldStatesByHash;
     this.archive = archive;
     this.evmConfiguration = evmConfiguration;
-    this.defaultBonsaiWorldStateConfigSupplier = defaultBonsaiWorldStateConfigSupplier;
+    this.worldStateConfig = worldStateConfig;
   }
 
-  public DiffBasedCachedWorldStorageManager(
-      final DiffBasedWorldStateProvider archive,
-      final DiffBasedWorldStateKeyValueStorage worldStateKeyValueStorage,
-      final Supplier<DiffBasedWorldStateConfig> defaultBonsaiWorldStateConfigSupplier) {
+  public PathBasedCachedWorldStorageManager(
+      final PathBasedWorldStateProvider archive,
+      final PathBasedWorldStateKeyValueStorage worldStateKeyValueStorage,
+      final WorldStateConfig worldStateConfig) {
     this(
         archive,
         worldStateKeyValueStorage,
         new ConcurrentHashMap<>(),
         EvmConfiguration.DEFAULT,
-        defaultBonsaiWorldStateConfigSupplier);
+        worldStateConfig);
   }
 
   public synchronized void addCachedLayer(
       final BlockHeader blockHeader,
       final Hash worldStateRootHash,
-      final DiffBasedWorldState forWorldState) {
-    final Optional<DiffBasedCachedWorldView> cachedDiffBasedWorldView =
+      final PathBasedWorldState forWorldState) {
+    final Optional<PathBasedCachedWorldView> cachedPathBasedWorldView =
         Optional.ofNullable(this.cachedWorldStatesByHash.get(blockHeader.getBlockHash()));
-    if (cachedDiffBasedWorldView.isPresent()) {
+    if (cachedPathBasedWorldView.isPresent()) {
       // only replace if it is a layered storage
-      if (forWorldState.isPersisted()
-          && cachedDiffBasedWorldView.get().getWorldStateStorage()
-              instanceof DiffBasedLayeredWorldStateKeyValueStorage) {
+      if (forWorldState.isModifyingHeadWorldState()
+          && cachedPathBasedWorldView.get().getWorldStateStorage()
+              instanceof PathBasedLayeredWorldStateKeyValueStorage) {
         LOG.atDebug()
             .setMessage("updating layered world state for block {}, state root hash {}")
             .addArgument(blockHeader::toLogString)
             .addArgument(worldStateRootHash::toShortHexString)
             .log();
-        cachedDiffBasedWorldView
+        cachedPathBasedWorldView
             .get()
             .updateWorldStateStorage(
                 createSnapshotKeyValueStorage(forWorldState.getWorldStateStorage()));
@@ -111,18 +112,18 @@ public abstract class DiffBasedCachedWorldStorageManager implements StorageSubsc
           .addArgument(blockHeader::toLogString)
           .addArgument(worldStateRootHash::toShortHexString)
           .log();
-      if (forWorldState.isPersisted()) {
+      if (forWorldState.isModifyingHeadWorldState()) {
         cachedWorldStatesByHash.put(
             blockHeader.getHash(),
-            new DiffBasedCachedWorldView(
+            new PathBasedCachedWorldView(
                 blockHeader, createSnapshotKeyValueStorage(forWorldState.getWorldStateStorage())));
       } else {
         // otherwise, add the layer to the cache
         cachedWorldStatesByHash.put(
             blockHeader.getHash(),
-            new DiffBasedCachedWorldView(
+            new PathBasedCachedWorldView(
                 blockHeader,
-                ((DiffBasedLayeredWorldStateKeyValueStorage) forWorldState.getWorldStateStorage())
+                ((PathBasedLayeredWorldStateKeyValueStorage) forWorldState.getWorldStateStorage())
                     .clone()));
       }
       // add stateroot -> blockHeader cache entry
@@ -145,7 +146,7 @@ public abstract class DiffBasedCachedWorldStorageManager implements StorageSubsc
     }
   }
 
-  public Optional<DiffBasedWorldState> getWorldState(final Hash blockHash) {
+  public Optional<PathBasedWorldState> getWorldState(final Hash blockHash) {
     if (cachedWorldStatesByHash.containsKey(blockHash)) {
       // return a new worldstate using worldstate storage and an isolated copy of the updater
       return Optional.ofNullable(cachedWorldStatesByHash.get(blockHash))
@@ -164,7 +165,7 @@ public abstract class DiffBasedCachedWorldStorageManager implements StorageSubsc
     return Optional.empty();
   }
 
-  public Optional<DiffBasedWorldState> getNearestWorldState(final BlockHeader blockHeader) {
+  public Optional<PathBasedWorldState> getNearestWorldState(final BlockHeader blockHeader) {
     LOG.atDebug()
         .setMessage("getting nearest worldstate for {}")
         .addArgument(blockHeader.toLogString())
@@ -172,7 +173,7 @@ public abstract class DiffBasedCachedWorldStorageManager implements StorageSubsc
 
     return Optional.ofNullable(
             cachedWorldStatesByHash.get(blockHeader.getParentHash())) // search parent block
-        .map(DiffBasedCachedWorldView::getWorldStateStorage)
+        .map(PathBasedCachedWorldView::getWorldStateStorage)
         .or(
             () -> {
               // or else search the nearest state in the cache
@@ -181,13 +182,13 @@ public abstract class DiffBasedCachedWorldStorageManager implements StorageSubsc
                   .addArgument(blockHeader.toLogString())
                   .log();
 
-              final List<DiffBasedCachedWorldView> cachedDiffBasedWorldViews =
+              final List<PathBasedCachedWorldView> cachedPathBasedWorldViews =
                   new ArrayList<>(cachedWorldStatesByHash.values());
-              return cachedDiffBasedWorldViews.stream()
+              return cachedPathBasedWorldViews.stream()
                   .sorted(
                       Comparator.comparingLong(
                           view -> Math.abs(blockHeader.getNumber() - view.getBlockNumber())))
-                  .map(DiffBasedCachedWorldView::getWorldStateStorage)
+                  .map(PathBasedCachedWorldView::getWorldStateStorage)
                   .findFirst();
             })
         .map(
@@ -196,7 +197,7 @@ public abstract class DiffBasedCachedWorldStorageManager implements StorageSubsc
                     archive, createLayeredKeyValueStorage(storage), evmConfiguration));
   }
 
-  public Optional<DiffBasedWorldState> getHeadWorldState(
+  public Optional<PathBasedWorldState> getHeadWorldState(
       final Function<Hash, Optional<BlockHeader>> hashBlockHeaderFunction) {
 
     LOG.atDebug().setMessage("getting head worldstate").log();
@@ -241,18 +242,20 @@ public abstract class DiffBasedCachedWorldStorageManager implements StorageSubsc
    * @param rootHash rootHash to supply worldstate storage for
    * @return Optional worldstate storage
    */
-  public synchronized Optional<DiffBasedWorldStateKeyValueStorage> getStorageByRootHash(
+  public synchronized Optional<PathBasedWorldStateKeyValueStorage> getStorageByRootHash(
       final Hash rootHash) {
     return Optional.ofNullable(stateRootToBlockHeaderCache.getIfPresent(rootHash))
         .flatMap(
             header ->
                 Optional.ofNullable(cachedWorldStatesByHash.get(header.getHash()))
-                    .map(DiffBasedCachedWorldView::getWorldStateStorage)
+                    .map(PathBasedCachedWorldView::getWorldStateStorage)
                     .or(
                         () -> {
                           // if not cached already, maybe fetch and cache this worldstate
                           var maybeWorldState =
-                              archive.getMutable(header, false).map(BonsaiWorldState.class::cast);
+                              archive
+                                  .getWorldState(withBlockHeaderAndNoUpdateNodeHead(header))
+                                  .map(BonsaiWorldState.class::cast);
                           maybeWorldState.ifPresent(
                               ws -> addCachedLayer(header, header.getStateRoot(), ws));
                           return maybeWorldState.map(BonsaiWorldState::getWorldStateStorage);
@@ -284,14 +287,14 @@ public abstract class DiffBasedCachedWorldStorageManager implements StorageSubsc
     this.cachedWorldStatesByHash.clear();
   }
 
-  public abstract DiffBasedWorldState createWorldState(
-      final DiffBasedWorldStateProvider archive,
-      final DiffBasedWorldStateKeyValueStorage worldStateKeyValueStorage,
+  public abstract PathBasedWorldState createWorldState(
+      final PathBasedWorldStateProvider archive,
+      final PathBasedWorldStateKeyValueStorage worldStateKeyValueStorage,
       final EvmConfiguration evmConfiguration);
 
-  public abstract DiffBasedWorldStateKeyValueStorage createLayeredKeyValueStorage(
-      final DiffBasedWorldStateKeyValueStorage worldStateKeyValueStorage);
+  public abstract PathBasedWorldStateKeyValueStorage createLayeredKeyValueStorage(
+      final PathBasedWorldStateKeyValueStorage worldStateKeyValueStorage);
 
-  public abstract DiffBasedWorldStateKeyValueStorage createSnapshotKeyValueStorage(
-      final DiffBasedWorldStateKeyValueStorage worldStateKeyValueStorage);
+  public abstract PathBasedWorldStateKeyValueStorage createSnapshotKeyValueStorage(
+      final PathBasedWorldStateKeyValueStorage worldStateKeyValueStorage);
 }

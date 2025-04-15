@@ -15,13 +15,13 @@
 package org.hyperledger.besu.ethereum.mainnet;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.hyperledger.besu.evm.operation.BlockHashOperation.BlockHashLookup;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.when;
 
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.Hash;
+import org.hyperledger.besu.datatypes.TransactionType;
 import org.hyperledger.besu.datatypes.Wei;
 import org.hyperledger.besu.ethereum.core.ProcessableBlockHeader;
 import org.hyperledger.besu.ethereum.core.Transaction;
@@ -30,12 +30,16 @@ import org.hyperledger.besu.ethereum.mainnet.feemarket.FeeMarket;
 import org.hyperledger.besu.ethereum.transaction.TransactionInvalidReason;
 import org.hyperledger.besu.ethereum.trie.MerkleTrieException;
 import org.hyperledger.besu.evm.account.MutableAccount;
+import org.hyperledger.besu.evm.blockhash.BlockHashLookup;
+import org.hyperledger.besu.evm.code.CodeV0;
 import org.hyperledger.besu.evm.frame.MessageFrame;
 import org.hyperledger.besu.evm.gascalculator.GasCalculator;
 import org.hyperledger.besu.evm.gascalculator.LondonGasCalculator;
 import org.hyperledger.besu.evm.log.Log;
-import org.hyperledger.besu.evm.processor.AbstractMessageProcessor;
+import org.hyperledger.besu.evm.processor.ContractCreationProcessor;
+import org.hyperledger.besu.evm.processor.MessageCallProcessor;
 import org.hyperledger.besu.evm.tracing.OperationTracer;
+import org.hyperledger.besu.evm.worldstate.CodeDelegationService;
 import org.hyperledger.besu.evm.worldstate.WorldUpdater;
 import org.hyperledger.besu.evm.worldstate.WorldView;
 
@@ -67,8 +71,8 @@ class MainnetTransactionProcessorTest {
   @Mock(answer = Answers.RETURNS_DEEP_STUBS)
   private TransactionValidatorFactory transactionValidatorFactory;
 
-  @Mock private AbstractMessageProcessor contractCreationProcessor;
-  @Mock private AbstractMessageProcessor messageCallProcessor;
+  @Mock private ContractCreationProcessor contractCreationProcessor;
+  @Mock private MessageCallProcessor messageCallProcessor;
 
   @Mock private WorldUpdater worldState;
   @Mock private ProcessableBlockHeader blockHeader;
@@ -79,17 +83,20 @@ class MainnetTransactionProcessorTest {
   @Mock private MutableAccount receiverAccount;
 
   MainnetTransactionProcessor createTransactionProcessor(final boolean warmCoinbase) {
-    return new MainnetTransactionProcessor(
-        gasCalculator,
-        transactionValidatorFactory,
-        contractCreationProcessor,
-        messageCallProcessor,
-        false,
-        warmCoinbase,
-        MAX_STACK_SIZE,
-        FeeMarket.legacy(),
-        CoinbaseFeePriceCalculator.frontier(),
-        new CodeDelegationProcessor(Optional.of(BigInteger.ONE), BigInteger.TEN));
+    return MainnetTransactionProcessor.builder()
+        .gasCalculator(gasCalculator)
+        .transactionValidatorFactory(transactionValidatorFactory)
+        .contractCreationProcessor(contractCreationProcessor)
+        .messageCallProcessor(messageCallProcessor)
+        .clearEmptyAccounts(false)
+        .warmCoinbase(warmCoinbase)
+        .maxStackSize(MAX_STACK_SIZE)
+        .feeMarket(FeeMarket.legacy())
+        .coinbaseFeePriceCalculator(CoinbaseFeePriceCalculator.frontier())
+        .codeDelegationProcessor(
+            new CodeDelegationProcessor(
+                Optional.of(BigInteger.ONE), BigInteger.TEN, new CodeDelegationService()))
+        .build();
   }
 
   @Test
@@ -100,6 +107,7 @@ class MainnetTransactionProcessorTest {
     Address senderAddress = Address.fromHexString("0x5555555555555555555555555555555555555555");
     Address coinbaseAddress = Address.fromHexString("0x4242424242424242424242424242424242424242");
 
+    when(transaction.getType()).thenReturn(TransactionType.EIP1559);
     when(transaction.getHash()).thenReturn(Hash.EMPTY);
     when(transaction.getPayload()).thenReturn(Bytes.EMPTY);
     when(transaction.getSender()).thenReturn(senderAddress);
@@ -161,6 +169,7 @@ class MainnetTransactionProcessorTest {
     Address senderAddress = Address.fromHexString("0x5555555555555555555555555555555555555555");
     Address coinbaseAddress = Address.fromHexString("0x4242424242424242424242424242424242424242");
 
+    when(transaction.getType()).thenReturn(TransactionType.EIP1559);
     when(transaction.getTo()).thenReturn(toAddress);
     when(transaction.getHash()).thenReturn(Hash.EMPTY);
     when(transaction.getPayload()).thenReturn(Bytes.EMPTY);
@@ -172,7 +181,9 @@ class MainnetTransactionProcessorTest {
         .thenReturn(ValidationResult.valid());
     when(worldState.getOrCreateSenderAccount(senderAddress)).thenReturn(senderAccount);
     when(worldState.get(toAddress.get())).thenReturn(receiverAccount);
+    when(receiverAccount.getCodeHash()).thenReturn(Hash.fromHexStringLenient("0x1"));
     when(worldState.updater()).thenReturn(worldState);
+    when(messageCallProcessor.getCodeFromEVM(any(), any())).thenReturn(CodeV0.EMPTY_CODE);
     // throw exception when processing the transaction
     doAnswer(
             invocation -> {

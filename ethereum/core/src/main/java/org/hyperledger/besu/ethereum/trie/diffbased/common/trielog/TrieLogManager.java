@@ -12,15 +12,15 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-package org.hyperledger.besu.ethereum.trie.diffbased.common.trielog;
+package org.hyperledger.besu.ethereum.trie.pathbased.common.trielog;
 
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.ethereum.chain.Blockchain;
 import org.hyperledger.besu.ethereum.core.BlockHeader;
-import org.hyperledger.besu.ethereum.trie.diffbased.bonsai.trielog.TrieLogFactoryImpl;
-import org.hyperledger.besu.ethereum.trie.diffbased.common.storage.DiffBasedWorldStateKeyValueStorage;
-import org.hyperledger.besu.ethereum.trie.diffbased.common.worldview.DiffBasedWorldState;
-import org.hyperledger.besu.ethereum.trie.diffbased.common.worldview.accumulator.DiffBasedWorldStateUpdateAccumulator;
+import org.hyperledger.besu.ethereum.trie.pathbased.bonsai.trielog.TrieLogFactoryImpl;
+import org.hyperledger.besu.ethereum.trie.pathbased.common.storage.PathBasedWorldStateKeyValueStorage;
+import org.hyperledger.besu.ethereum.trie.pathbased.common.worldview.PathBasedWorldState;
+import org.hyperledger.besu.ethereum.trie.pathbased.common.worldview.accumulator.PathBasedWorldStateUpdateAccumulator;
 import org.hyperledger.besu.plugin.ServiceManager;
 import org.hyperledger.besu.plugin.services.TrieLogService;
 import org.hyperledger.besu.plugin.services.trielogs.TrieLog;
@@ -42,7 +42,7 @@ public class TrieLogManager {
   private static final Logger LOG = LoggerFactory.getLogger(TrieLogManager.class);
   public static final long LOG_RANGE_LIMIT = 1000; // restrict trielog range queries to 1k logs
   protected final Blockchain blockchain;
-  protected final DiffBasedWorldStateKeyValueStorage rootWorldStateStorage;
+  protected final PathBasedWorldStateKeyValueStorage rootWorldStateStorage;
 
   protected final long maxLayersToLoad;
   protected final Subscribers<TrieLogEvent.TrieLogObserver> trieLogObservers = Subscribers.create();
@@ -51,7 +51,7 @@ public class TrieLogManager {
 
   public TrieLogManager(
       final Blockchain blockchain,
-      final DiffBasedWorldStateKeyValueStorage worldStateKeyValueStorage,
+      final PathBasedWorldStateKeyValueStorage worldStateKeyValueStorage,
       final long maxLayersToLoad,
       final ServiceManager pluginContext) {
     this.blockchain = blockchain;
@@ -61,15 +61,15 @@ public class TrieLogManager {
   }
 
   public synchronized void saveTrieLog(
-      final DiffBasedWorldStateUpdateAccumulator<?> localUpdater,
+      final PathBasedWorldStateUpdateAccumulator<?> localUpdater,
       final Hash forWorldStateRootHash,
       final BlockHeader forBlockHeader,
-      final DiffBasedWorldState forWorldState) {
+      final PathBasedWorldState forWorldState) {
     // do not overwrite a trielog layer that already exists in the database.
     // if it's only in memory we need to save it
     // for example, in case of reorg we don't replace a trielog layer
     if (rootWorldStateStorage.getTrieLog(forBlockHeader.getHash()).isEmpty()) {
-      final DiffBasedWorldStateKeyValueStorage.Updater stateUpdater =
+      final PathBasedWorldStateKeyValueStorage.Updater stateUpdater =
           forWorldState.getWorldStateStorage().updater();
       boolean success = false;
       try {
@@ -82,7 +82,7 @@ public class TrieLogManager {
         success = true;
       } finally {
         if (success) {
-          stateUpdater.commit();
+          stateUpdater.commitTrieLogOnly();
         } else {
           stateUpdater.rollback();
         }
@@ -91,7 +91,7 @@ public class TrieLogManager {
   }
 
   private TrieLog prepareTrieLog(
-      final BlockHeader blockHeader, final DiffBasedWorldStateUpdateAccumulator<?> localUpdater) {
+      final BlockHeader blockHeader, final PathBasedWorldStateUpdateAccumulator<?> localUpdater) {
     LOG.atDebug()
         .setMessage("Adding layered world state for {}")
         .addArgument(blockHeader::toLogString)
@@ -105,7 +105,7 @@ public class TrieLogManager {
       final BlockHeader blockHeader,
       final Hash worldStateRootHash,
       final TrieLog trieLog,
-      final DiffBasedWorldStateKeyValueStorage.Updater stateUpdater) {
+      final PathBasedWorldStateKeyValueStorage.Updater stateUpdater) {
     LOG.atDebug()
         .setMessage("Persisting trie log for block hash {} and world state root {}")
         .addArgument(blockHeader::toLogString)
@@ -175,11 +175,11 @@ public class TrieLogManager {
       @Override
       public void saveRawTrieLogLayer(
           final Hash blockHash, final long blockNumber, final Bytes trieLog) {
-        final DiffBasedWorldStateKeyValueStorage.Updater updater = rootWorldStateStorage.updater();
+        final PathBasedWorldStateKeyValueStorage.Updater updater = rootWorldStateStorage.updater();
         updater
             .getTrieLogStorageTransaction()
             .put(blockHash.toArrayUnsafe(), trieLog.toArrayUnsafe());
-        updater.commit();
+        updater.commitTrieLogOnly();
         // TODO maybe find a way to have a clean and complete trielog for observers
         trieLogObservers.forEach(
             o ->

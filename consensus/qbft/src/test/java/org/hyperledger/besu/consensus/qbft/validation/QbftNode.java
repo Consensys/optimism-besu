@@ -12,9 +12,10 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-package org.hyperledger.besu.consensus.qbft.validation;
+package org.hyperledger.besu.consensus.qbft.core.validation;
 
-import org.hyperledger.besu.consensus.qbft.payload.MessageFactory;
+import org.hyperledger.besu.consensus.qbft.core.payload.MessageFactory;
+import org.hyperledger.besu.consensus.qbft.core.types.QbftBlockCodec;
 import org.hyperledger.besu.cryptoservices.NodeKey;
 import org.hyperledger.besu.cryptoservices.NodeKeyUtils;
 import org.hyperledger.besu.datatypes.Address;
@@ -42,9 +43,9 @@ public class QbftNode {
     return nodeKey;
   }
 
-  public static QbftNode create() {
+  public static QbftNode create(final QbftBlockCodec qbftBlockCodec) {
     final NodeKey nodeKey = NodeKeyUtils.generate();
-    final MessageFactory factory = new MessageFactory(nodeKey);
+    final MessageFactory factory = new MessageFactory(nodeKey, qbftBlockCodec);
 
     return new QbftNode(nodeKey, factory);
   }

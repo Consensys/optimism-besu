@@ -15,7 +15,6 @@
 package org.hyperledger.besu.ethereum.api.jsonrpc.internal.methods;
 
 import org.hyperledger.besu.datatypes.AccessListEntry;
-import org.hyperledger.besu.datatypes.Wei;
 import org.hyperledger.besu.ethereum.api.jsonrpc.RpcMethod;
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.JsonRpcRequestContext;
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.response.RpcErrorType;
@@ -122,12 +121,13 @@ public class EthCreateAccessList extends AbstractEstimateGas {
         callParams.getFrom(),
         callParams.getTo(),
         gasLimit,
-        Optional.ofNullable(callParams.getGasPrice()).orElse(Wei.ZERO),
+        callParams.getGasPrice(),
         callParams.getMaxPriorityFeePerGas(),
         callParams.getMaxFeePerGas(),
         callParams.getValue(),
         callParams.getPayload(),
-        Optional.of(accessListEntries));
+        Optional.of(accessListEntries),
+        callParams.getNonce());
   }
 
   private record AccessListSimulatorResult(

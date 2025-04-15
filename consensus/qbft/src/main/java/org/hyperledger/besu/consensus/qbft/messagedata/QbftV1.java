@@ -12,7 +12,7 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-package org.hyperledger.besu.consensus.qbft.messagedata;
+package org.hyperledger.besu.consensus.qbft.core.messagedata;
 
 /** Message codes for QBFT v1 messages */
 public interface QbftV1 {

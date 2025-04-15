@@ -1,5 +1,5 @@
 /*
- * Copyright ConsenSys AG.
+ * Copyright contributors to Besu.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -12,17 +12,15 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-package org.hyperledger.besu.ethereum.eth.messages;
+package org.hyperledger.besu.consensus.qbft.core.types;
 
-public final class EthPV65 {
+/** Provides logging for QBFT transition changes */
+public interface QbftValidatorModeTransitionLogger {
 
-  public static final int NEW_POOLED_TRANSACTION_HASHES = 0x08;
-
-  public static final int GET_POOLED_TRANSACTIONS = 0x09;
-
-  public static final int POOLED_TRANSACTIONS = 0x0A;
-
-  private EthPV65() {
-    // Holder for constants only
-  }
+  /**
+   * Logs the transition change
+   *
+   * @param parentHeader the parent header
+   */
+  void logTransitionChange(QbftBlockHeader parentHeader);
 }

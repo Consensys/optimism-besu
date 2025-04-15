@@ -12,44 +12,43 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-package org.hyperledger.besu.consensus.qbft.statemachine;
+package org.hyperledger.besu.consensus.qbft.core.statemachine;
 
+import static org.assertj.core.api.Assertions.assertThatNoException;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.util.Lists.newArrayList;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.atLeastOnce;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
-import org.hyperledger.besu.consensus.common.bft.BftExtraDataCodec;
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
-import org.hyperledger.besu.consensus.common.bft.EthSynchronizerUpdater;
 import org.hyperledger.besu.consensus.common.bft.MessageTracker;
 import org.hyperledger.besu.consensus.common.bft.events.BftReceivedMessageEvent;
 import org.hyperledger.besu.consensus.common.bft.events.BlockTimerExpiry;
-import org.hyperledger.besu.consensus.common.bft.events.NewChainHead;
 import org.hyperledger.besu.consensus.common.bft.events.RoundExpiry;
-import org.hyperledger.besu.consensus.common.bft.statemachine.BftFinalState;
 import org.hyperledger.besu.consensus.common.bft.statemachine.FutureMessageBuffer;
-import org.hyperledger.besu.consensus.qbft.QbftExtraDataCodec;
-import org.hyperledger.besu.consensus.qbft.QbftGossip;
-import org.hyperledger.besu.consensus.qbft.messagedata.CommitMessageData;
-import org.hyperledger.besu.consensus.qbft.messagedata.PrepareMessageData;
-import org.hyperledger.besu.consensus.qbft.messagedata.ProposalMessageData;
-import org.hyperledger.besu.consensus.qbft.messagedata.QbftV1;
-import org.hyperledger.besu.consensus.qbft.messagedata.RoundChangeMessageData;
-import org.hyperledger.besu.consensus.qbft.messagewrappers.Commit;
-import org.hyperledger.besu.consensus.qbft.messagewrappers.Prepare;
-import org.hyperledger.besu.consensus.qbft.messagewrappers.Proposal;
-import org.hyperledger.besu.consensus.qbft.messagewrappers.RoundChange;
+import org.hyperledger.besu.consensus.qbft.core.messagedata.CommitMessageData;
+import org.hyperledger.besu.consensus.qbft.core.messagedata.PrepareMessageData;
+import org.hyperledger.besu.consensus.qbft.core.messagedata.ProposalMessageData;
+import org.hyperledger.besu.consensus.qbft.core.messagedata.QbftV1;
+import org.hyperledger.besu.consensus.qbft.core.messagedata.RoundChangeMessageData;
+import org.hyperledger.besu.consensus.qbft.core.messagewrappers.Commit;
+import org.hyperledger.besu.consensus.qbft.core.messagewrappers.Prepare;
+import org.hyperledger.besu.consensus.qbft.core.messagewrappers.Proposal;
+import org.hyperledger.besu.consensus.qbft.core.messagewrappers.RoundChange;
+import org.hyperledger.besu.consensus.qbft.core.network.QbftGossip;
+import org.hyperledger.besu.consensus.qbft.core.types.QbftBlockCodec;
+import org.hyperledger.besu.consensus.qbft.core.types.QbftBlockHeader;
+import org.hyperledger.besu.consensus.qbft.core.types.QbftBlockchain;
+import org.hyperledger.besu.consensus.qbft.core.types.QbftFinalState;
+import org.hyperledger.besu.consensus.qbft.core.types.QbftNewChainHead;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.Hash;
-import org.hyperledger.besu.ethereum.chain.Blockchain;
-import org.hyperledger.besu.ethereum.core.BlockHeader;
 import org.hyperledger.besu.ethereum.p2p.rlpx.wire.DefaultMessage;
 import org.hyperledger.besu.ethereum.p2p.rlpx.wire.Message;
 
@@ -68,13 +67,11 @@ import org.mockito.quality.Strictness;
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
 public class QbftControllerTest {
-  private static final BftExtraDataCodec bftExtraDataCodec = new QbftExtraDataCodec();
-
-  @Mock private Blockchain blockChain;
-  @Mock private BftFinalState bftFinalState;
+  @Mock private QbftBlockchain blockChain;
+  @Mock private QbftFinalState qbftFinalState;
   @Mock private QbftBlockHeightManagerFactory blockHeightManagerFactory;
-  @Mock private BlockHeader chainHeadBlockHeader;
-  @Mock private BlockHeader nextBlock;
+  @Mock private QbftBlockHeader chainHeadBlockHeader;
+  @Mock private QbftBlockHeader nextBlock;
   @Mock private BaseQbftBlockHeightManager blockHeightManager;
 
   @Mock private Proposal proposal;
@@ -101,6 +98,7 @@ public class QbftControllerTest {
   private final ConsensusRoundIdentifier pastRoundIdentifier = new ConsensusRoundIdentifier(3, 0);
   @Mock private QbftGossip qbftGossip;
   @Mock private FutureMessageBuffer futureMessageBuffer;
+  @Mock private QbftBlockCodec blockEncoder;
   private QbftController qbftController;
 
   @BeforeEach
@@ -108,7 +106,7 @@ public class QbftControllerTest {
     when(blockChain.getChainHeadHeader()).thenReturn(chainHeadBlockHeader);
     when(blockChain.getChainHeadBlockNumber()).thenReturn(3L);
     when(blockHeightManagerFactory.create(any())).thenReturn(blockHeightManager);
-    when(bftFinalState.getValidators()).thenReturn(ImmutableList.of(validator));
+    when(qbftFinalState.getValidators()).thenReturn(ImmutableList.of(validator));
 
     when(chainHeadBlockHeader.getNumber()).thenReturn(3L);
     when(chainHeadBlockHeader.getHash()).thenReturn(Hash.ZERO);
@@ -118,7 +116,7 @@ public class QbftControllerTest {
 
     when(nextBlock.getNumber()).thenReturn(5L);
 
-    when(bftFinalState.isLocalNodeValidator()).thenReturn(true);
+    when(qbftFinalState.isLocalNodeValidator()).thenReturn(true);
     when(messageTracker.hasSeenMessage(any())).thenReturn(false);
   }
 
@@ -126,13 +124,12 @@ public class QbftControllerTest {
     qbftController =
         new QbftController(
             blockChain,
-            bftFinalState,
+            qbftFinalState,
             blockHeightManagerFactory,
             qbftGossip,
             messageTracker,
             futureMessageBuffer,
-            mock(EthSynchronizerUpdater.class),
-            bftExtraDataCodec);
+            blockEncoder);
   }
 
   @Test
@@ -189,7 +186,7 @@ public class QbftControllerTest {
 
     constructQbftController();
     qbftController.start();
-    final NewChainHead newChainHead = new NewChainHead(nextBlock);
+    final QbftNewChainHead newChainHead = new QbftNewChainHead(nextBlock);
     qbftController.handleNewBlockEvent(newChainHead);
 
     verify(blockHeightManagerFactory).create(nextBlock);
@@ -212,11 +209,11 @@ public class QbftControllerTest {
     long chainHeadHeight = 4;
     when(nextBlock.getNumber()).thenReturn(chainHeadHeight);
     when(nextBlock.getHash()).thenReturn(Hash.ZERO);
-    final NewChainHead sameHeightBlock = new NewChainHead(nextBlock);
+    final QbftNewChainHead sameHeightBlock = new QbftNewChainHead(nextBlock);
     qbftController.handleNewBlockEvent(sameHeightBlock);
 
     when(nextBlock.getNumber()).thenReturn(chainHeadHeight - 1);
-    final NewChainHead priorBlock = new NewChainHead(nextBlock);
+    final QbftNewChainHead priorBlock = new QbftNewChainHead(nextBlock);
     qbftController.handleNewBlockEvent(priorBlock);
     verify(blockHeightManagerFactory, times(2)).create(any()); // 2 blocks created
   }
@@ -456,7 +453,7 @@ public class QbftControllerTest {
     when(proposal.getAuthor()).thenReturn(validator);
     when(proposal.getRoundIdentifier()).thenReturn(roundIdentifier);
     when(proposalMessageData.getCode()).thenReturn(QbftV1.PROPOSAL);
-    when(proposalMessageData.decode(bftExtraDataCodec)).thenReturn(proposal);
+    when(proposalMessageData.decode(blockEncoder)).thenReturn(proposal);
     proposalMessage = new DefaultMessage(null, proposalMessageData);
   }
 
@@ -483,7 +480,24 @@ public class QbftControllerTest {
     when(roundChange.getAuthor()).thenReturn(validator);
     when(roundChange.getRoundIdentifier()).thenReturn(roundIdentifier);
     when(roundChangeMessageData.getCode()).thenReturn(QbftV1.ROUND_CHANGE);
-    when(roundChangeMessageData.decode(bftExtraDataCodec)).thenReturn(roundChange);
+    when(roundChangeMessageData.decode(blockEncoder)).thenReturn(roundChange);
     roundChangeMessage = new DefaultMessage(null, roundChangeMessageData);
+  }
+
+  @Test
+  public void heightManagerCanOnlyBeStartedOnceIfNotStopped() {
+    constructQbftController();
+    qbftController.start();
+    assertThatThrownBy(() -> qbftController.start())
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessage("Attempt to start new height manager without stopping previous manager");
+  }
+
+  @Test
+  public void heightManagerCanBeRestartedIfStopped() {
+    constructQbftController();
+    qbftController.start();
+    qbftController.stop();
+    assertThatNoException().isThrownBy(() -> qbftController.start());
   }
 }

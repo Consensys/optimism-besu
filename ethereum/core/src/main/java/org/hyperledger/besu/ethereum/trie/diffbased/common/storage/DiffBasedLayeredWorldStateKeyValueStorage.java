@@ -12,10 +12,10 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-package org.hyperledger.besu.ethereum.trie.diffbased.common.storage;
+package org.hyperledger.besu.ethereum.trie.pathbased.common.storage;
 
-public interface DiffBasedLayeredWorldStateKeyValueStorage
-    extends DiffBasedSnapshotWorldStateKeyValueStorage {
+public interface PathBasedLayeredWorldStateKeyValueStorage
+    extends PathBasedSnapshotWorldStateKeyValueStorage {
 
-  DiffBasedWorldStateKeyValueStorage clone();
+  PathBasedWorldStateKeyValueStorage clone();
 }

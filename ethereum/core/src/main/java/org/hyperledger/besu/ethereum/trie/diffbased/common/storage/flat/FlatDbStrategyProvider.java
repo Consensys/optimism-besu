@@ -12,11 +12,11 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-package org.hyperledger.besu.ethereum.trie.diffbased.common.storage.flat;
+package org.hyperledger.besu.ethereum.trie.pathbased.common.storage.flat;
 
 import static org.hyperledger.besu.ethereum.storage.keyvalue.KeyValueSegmentIdentifier.CODE_STORAGE;
 import static org.hyperledger.besu.ethereum.storage.keyvalue.KeyValueSegmentIdentifier.TRIE_BRANCH_STORAGE;
-import static org.hyperledger.besu.ethereum.trie.diffbased.common.storage.DiffBasedWorldStateKeyValueStorage.WORLD_ROOT_HASH_KEY;
+import static org.hyperledger.besu.ethereum.trie.pathbased.common.storage.PathBasedWorldStateKeyValueStorage.WORLD_ROOT_HASH_KEY;
 
 import org.hyperledger.besu.ethereum.worldstate.DataStorageConfiguration;
 import org.hyperledger.besu.ethereum.worldstate.FlatDbMode;
@@ -66,7 +66,7 @@ public abstract class FlatDbStrategyProvider {
       final SegmentedKeyValueStorage composedWorldStateStorage) {
     final boolean configCodeUsingHash =
         dataStorageConfiguration
-            .getDiffBasedSubStorageConfiguration()
+            .getPathBasedExtraStorageConfiguration()
             .getUnstable()
             .getCodeStoredByCodeHashEnabled();
     boolean codeUsingCodeByHash =

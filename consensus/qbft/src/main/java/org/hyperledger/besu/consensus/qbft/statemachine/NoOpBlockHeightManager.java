@@ -12,27 +12,27 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-package org.hyperledger.besu.consensus.qbft.statemachine;
+package org.hyperledger.besu.consensus.qbft.core.statemachine;
 
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
 import org.hyperledger.besu.consensus.common.bft.events.RoundExpiry;
-import org.hyperledger.besu.consensus.qbft.messagewrappers.Commit;
-import org.hyperledger.besu.consensus.qbft.messagewrappers.Prepare;
-import org.hyperledger.besu.consensus.qbft.messagewrappers.Proposal;
-import org.hyperledger.besu.consensus.qbft.messagewrappers.RoundChange;
-import org.hyperledger.besu.ethereum.core.BlockHeader;
+import org.hyperledger.besu.consensus.qbft.core.messagewrappers.Commit;
+import org.hyperledger.besu.consensus.qbft.core.messagewrappers.Prepare;
+import org.hyperledger.besu.consensus.qbft.core.messagewrappers.Proposal;
+import org.hyperledger.besu.consensus.qbft.core.messagewrappers.RoundChange;
+import org.hyperledger.besu.consensus.qbft.core.types.QbftBlockHeader;
 
 /** The type NoOp block height manager. */
 public class NoOpBlockHeightManager implements BaseQbftBlockHeightManager {
 
-  private final BlockHeader parentHeader;
+  private final QbftBlockHeader parentHeader;
 
   /**
    * Instantiates a new NoOp block height manager.
    *
    * @param parentHeader the parent header
    */
-  public NoOpBlockHeightManager(final BlockHeader parentHeader) {
+  public NoOpBlockHeightManager(final QbftBlockHeader parentHeader) {
     this.parentHeader = parentHeader;
   }
 
@@ -60,7 +60,7 @@ public class NoOpBlockHeightManager implements BaseQbftBlockHeightManager {
   }
 
   @Override
-  public BlockHeader getParentBlockHeader() {
+  public QbftBlockHeader getParentBlockHeader() {
     return parentHeader;
   }
 }

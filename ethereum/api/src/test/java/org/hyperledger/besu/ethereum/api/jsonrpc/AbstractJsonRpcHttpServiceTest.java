@@ -1,5 +1,5 @@
 /*
- * Copyright ConsenSys AG.
+ * Copyright contributors to Besu.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -21,8 +21,10 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import org.hyperledger.besu.config.StubGenesisConfigOptions;
+import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.ethereum.ProtocolContext;
 import org.hyperledger.besu.ethereum.api.ApiConfiguration;
+import org.hyperledger.besu.ethereum.api.ImmutableApiConfiguration;
 import org.hyperledger.besu.ethereum.api.graphql.GraphQLConfiguration;
 import org.hyperledger.besu.ethereum.api.jsonrpc.health.HealthService;
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.filter.FilterIdGenerator;
@@ -41,6 +43,7 @@ import org.hyperledger.besu.ethereum.core.Synchronizer;
 import org.hyperledger.besu.ethereum.core.Transaction;
 import org.hyperledger.besu.ethereum.eth.EthProtocol;
 import org.hyperledger.besu.ethereum.eth.manager.EthPeers;
+import org.hyperledger.besu.ethereum.eth.manager.EthScheduler;
 import org.hyperledger.besu.ethereum.eth.transactions.TransactionPool;
 import org.hyperledger.besu.ethereum.mainnet.ValidationResult;
 import org.hyperledger.besu.ethereum.p2p.network.P2PNetwork;
@@ -132,6 +135,10 @@ public abstract class AbstractJsonRpcHttpServiceTest {
     return emptySetupUtil;
   }
 
+  protected ApiConfiguration createApiConfiguration() {
+    return ImmutableApiConfiguration.builder().gasCap(0L).build();
+  }
+
   protected Map<String, JsonRpcMethod> getRpcMethods(
       final JsonRpcConfiguration config, final BlockchainSetupUtil blockchainSetupUtil) {
     final ProtocolContext protocolContext = mock(ProtocolContext.class);
@@ -140,12 +147,15 @@ public abstract class AbstractJsonRpcHttpServiceTest {
     final TransactionPool transactionPoolMock = mock(TransactionPool.class);
     final MiningConfiguration miningConfiguration = mock(MiningConfiguration.class);
     final PoWMiningCoordinator miningCoordinatorMock = mock(PoWMiningCoordinator.class);
+    final ApiConfiguration apiConfiguration = createApiConfiguration();
     when(transactionPoolMock.addTransactionViaApi(any(Transaction.class)))
         .thenReturn(ValidationResult.valid());
     // nonce too low tests uses a tx with nonce=16
     when(transactionPoolMock.addTransactionViaApi(argThat(tx -> tx.getNonce() == 16)))
         .thenReturn(ValidationResult.invalid(TransactionInvalidReason.NONCE_TOO_LOW));
     final PrivacyParameters privacyParameters = mock(PrivacyParameters.class);
+
+    when(miningConfiguration.getCoinbase()).thenReturn(Optional.of(Address.ZERO));
 
     final BlockchainQueries blockchainQueries =
         new BlockchainQueries(
@@ -165,8 +175,7 @@ public abstract class AbstractJsonRpcHttpServiceTest {
             .build();
 
     final Set<Capability> supportedCapabilities = new HashSet<>();
-    supportedCapabilities.add(EthProtocol.ETH62);
-    supportedCapabilities.add(EthProtocol.ETH63);
+    supportedCapabilities.add(EthProtocol.LATEST);
 
     final NatService natService = new NatService(Optional.empty());
 
@@ -176,7 +185,7 @@ public abstract class AbstractJsonRpcHttpServiceTest {
             blockchainSetupUtil.getWorldArchive(),
             blockchainSetupUtil.getProtocolSchedule(),
             miningConfiguration,
-            0L);
+            apiConfiguration.getGasCap());
 
     return new JsonRpcMethodsFactory()
         .methods(
@@ -209,9 +218,10 @@ public abstract class AbstractJsonRpcHttpServiceTest {
             folder,
             mock(EthPeers.class),
             syncVertx,
-            mock(ApiConfiguration.class),
+            ImmutableApiConfiguration.builder().build(),
             Optional.empty(),
-            transactionSimulator);
+            transactionSimulator,
+            new EthScheduler(1, 1, 1, new NoOpMetricsSystem()));
   }
 
   protected void startService() throws Exception {

@@ -1,5 +1,5 @@
 /*
- * Copyright ConsenSys AG.
+ * Copyright contributors to Besu.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -12,9 +12,7 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-package org.hyperledger.besu.ethereum.p2p.discovery.internal;
-
-import org.hyperledger.besu.ethereum.rlp.RLPOutput;
+package org.hyperledger.besu.ethereum.p2p.discovery.internal.packet;
 
 import java.time.Instant;
 
@@ -25,13 +23,6 @@ public interface PacketData {
    * is 20 seconds.
    */
   long DEFAULT_EXPIRATION_PERIOD_SEC = 60;
-
-  /**
-   * Serializes the implementing packet data onto the provided RLP output buffer.
-   *
-   * @param out The RLP output buffer.
-   */
-  void writeTo(RLPOutput out);
 
   static long defaultExpiration() {
     return Instant.now().getEpochSecond() + DEFAULT_EXPIRATION_PERIOD_SEC;

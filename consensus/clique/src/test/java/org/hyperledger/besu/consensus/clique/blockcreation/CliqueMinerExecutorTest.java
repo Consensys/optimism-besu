@@ -20,7 +20,7 @@ import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import org.hyperledger.besu.config.GenesisConfigFile;
+import org.hyperledger.besu.config.GenesisConfig;
 import org.hyperledger.besu.config.GenesisConfigOptions;
 import org.hyperledger.besu.consensus.clique.CliqueBlockHeaderFunctions;
 import org.hyperledger.besu.consensus.clique.CliqueBlockInterface;
@@ -74,7 +74,7 @@ public class CliqueMinerExecutorTest {
 
   private static final int EPOCH_LENGTH = 10;
   private static final GenesisConfigOptions GENESIS_CONFIG_OPTIONS =
-      GenesisConfigFile.fromConfig("{}").getConfigOptions();
+      GenesisConfig.fromConfig("{}").getConfigOptions();
   private final NodeKey proposerNodeKey = NodeKeyUtils.generate();
   private final Random random = new Random(21341234L);
   private Address localAddress;
@@ -100,7 +100,8 @@ public class CliqueMinerExecutorTest {
 
     final CliqueContext cliqueContext = new CliqueContext(validatorProvider, null, blockInterface);
     CliqueHelpers.setCliqueContext(cliqueContext);
-    cliqueProtocolContext = new ProtocolContext(null, null, cliqueContext, new BadBlockManager());
+    cliqueProtocolContext =
+        new ProtocolContext.Builder().withConsensusContext(cliqueContext).build();
     cliqueProtocolSchedule =
         CliqueProtocolSchedule.create(
             GENESIS_CONFIG_OPTIONS,

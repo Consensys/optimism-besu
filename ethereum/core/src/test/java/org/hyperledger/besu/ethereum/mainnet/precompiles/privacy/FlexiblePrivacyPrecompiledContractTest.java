@@ -20,7 +20,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hyperledger.besu.ethereum.core.PrivateTransactionDataFixture.versionedPrivateTransactionBesu;
 import static org.hyperledger.besu.ethereum.mainnet.PrivateStateUtils.KEY_IS_PERSISTING_PRIVATE_STATE;
 import static org.hyperledger.besu.ethereum.mainnet.PrivateStateUtils.KEY_PRIVATE_METADATA_UPDATER;
-import static org.hyperledger.besu.evm.operation.BlockHashOperation.BlockHashLookup;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.nullable;
@@ -51,6 +50,7 @@ import org.hyperledger.besu.ethereum.processing.TransactionProcessingResult;
 import org.hyperledger.besu.ethereum.rlp.BytesValueRLPOutput;
 import org.hyperledger.besu.ethereum.transaction.TransactionInvalidReason;
 import org.hyperledger.besu.ethereum.worldstate.WorldStateArchive;
+import org.hyperledger.besu.evm.blockhash.BlockHashLookup;
 import org.hyperledger.besu.evm.frame.MessageFrame;
 import org.hyperledger.besu.evm.gascalculator.SpuriousDragonGasCalculator;
 import org.hyperledger.besu.evm.log.Log;
@@ -105,9 +105,10 @@ public class FlexiblePrivacyPrecompiledContractTest {
   @BeforeEach
   public void setUp() {
     final MutableWorldState mutableWorldState = mock(MutableWorldState.class);
+    when(mutableWorldState.rootHash()).thenReturn(Hash.EMPTY);
     when(mutableWorldState.updater()).thenReturn(mock(WorldUpdater.class));
-    when(worldStateArchive.getMutable()).thenReturn(mutableWorldState);
-    when(worldStateArchive.getMutable(any(), any())).thenReturn(Optional.of(mutableWorldState));
+    when(worldStateArchive.getWorldState()).thenReturn(mutableWorldState);
+    when(worldStateArchive.getWorldState(any())).thenReturn(Optional.of(mutableWorldState));
 
     final PrivateStateStorage.Updater storageUpdater = mock(PrivateStateStorage.Updater.class);
     when(privateStateStorage.getPrivacyGroupHeadBlockMap(any()))
@@ -166,7 +167,7 @@ public class FlexiblePrivacyPrecompiledContractTest {
 
     final PrecompiledContract.PrecompileContractResult result =
         contractSpy.computePrecompile(privateTransactionLookupId, messageFrame);
-    final Bytes actual = result.getOutput();
+    final Bytes actual = result.output();
 
     assertThat(actual).isEqualTo(Bytes.fromHexString(DEFAULT_OUTPUT));
   }
@@ -198,7 +199,7 @@ public class FlexiblePrivacyPrecompiledContractTest {
 
     final PrecompiledContract.PrecompileContractResult result =
         contractSpy.computePrecompile(privateTransactionLookupId64, messageFrame);
-    final Bytes actual = result.getOutput();
+    final Bytes actual = result.output();
 
     assertThat(actual).isEqualTo(Bytes.fromHexString(DEFAULT_OUTPUT));
   }
@@ -212,7 +213,7 @@ public class FlexiblePrivacyPrecompiledContractTest {
 
     final PrecompiledContract.PrecompileContractResult result =
         contract.computePrecompile(privateTransactionLookupId, messageFrame);
-    final Bytes actual = result.getOutput();
+    final Bytes actual = result.output();
 
     assertThat(actual).isEqualTo(Bytes.EMPTY);
   }
@@ -224,7 +225,7 @@ public class FlexiblePrivacyPrecompiledContractTest {
 
     final PrecompiledContract.PrecompileContractResult result =
         contract.computePrecompile(null, messageFrame);
-    final Bytes actual = result.getOutput();
+    final Bytes actual = result.output();
 
     assertThat(actual).isEqualTo(Bytes.EMPTY);
   }
@@ -236,7 +237,7 @@ public class FlexiblePrivacyPrecompiledContractTest {
 
     final PrecompiledContract.PrecompileContractResult result =
         contract.computePrecompile(privateTransactionLookupId.slice(10), messageFrame);
-    final Bytes actual = result.getOutput();
+    final Bytes actual = result.output();
 
     assertThat(actual).isEqualTo(Bytes.EMPTY);
   }
@@ -248,7 +249,7 @@ public class FlexiblePrivacyPrecompiledContractTest {
 
     final PrecompiledContract.PrecompileContractResult result =
         contract.computePrecompile(privateTransactionLookupId64.slice(40), messageFrame);
-    final Bytes actual = result.getOutput();
+    final Bytes actual = result.output();
 
     assertThat(actual).isEqualTo(Bytes.EMPTY);
   }
@@ -298,7 +299,7 @@ public class FlexiblePrivacyPrecompiledContractTest {
 
     final PrecompiledContract.PrecompileContractResult result =
         contract.computePrecompile(privateTransactionLookupId, messageFrame);
-    final Bytes actual = result.getOutput();
+    final Bytes actual = result.output();
 
     assertThat(actual).isEqualTo(Bytes.EMPTY);
   }
@@ -368,7 +369,7 @@ public class FlexiblePrivacyPrecompiledContractTest {
 
     final PrecompiledContract.PrecompileContractResult result =
         contractSpy.computePrecompile(privateTransactionLookupId, messageFrame);
-    final Bytes actual = result.getOutput();
+    final Bytes actual = result.output();
 
     assertThat(actual).isEqualTo(Bytes.EMPTY);
   }
@@ -408,7 +409,7 @@ public class FlexiblePrivacyPrecompiledContractTest {
 
     final PrecompiledContract.PrecompileContractResult result =
         contractSpy.computePrecompile(privateTransactionLookupId, messageFrame);
-    final Bytes actual = result.getOutput();
+    final Bytes actual = result.output();
 
     assertThat(actual).isEqualTo(Bytes.EMPTY);
   }

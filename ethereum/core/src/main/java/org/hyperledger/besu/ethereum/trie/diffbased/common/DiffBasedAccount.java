@@ -12,14 +12,14 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-package org.hyperledger.besu.ethereum.trie.diffbased.common;
+package org.hyperledger.besu.ethereum.trie.pathbased.common;
 
 import org.hyperledger.besu.datatypes.AccountValue;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.datatypes.Wei;
 import org.hyperledger.besu.ethereum.rlp.BytesValueRLPOutput;
-import org.hyperledger.besu.ethereum.trie.diffbased.common.worldview.DiffBasedWorldView;
+import org.hyperledger.besu.ethereum.trie.pathbased.common.worldview.PathBasedWorldView;
 import org.hyperledger.besu.evm.ModificationNotAllowedException;
 import org.hyperledger.besu.evm.account.MutableAccount;
 
@@ -29,8 +29,8 @@ import java.util.Map;
 import org.apache.tuweni.bytes.Bytes;
 import org.apache.tuweni.units.bigints.UInt256;
 
-public abstract class DiffBasedAccount implements MutableAccount, AccountValue {
-  protected final DiffBasedWorldView context;
+public abstract class PathBasedAccount implements MutableAccount, AccountValue {
+  protected final PathBasedWorldView context;
   protected boolean immutable;
   protected final Address address;
   protected final Hash addressHash;
@@ -42,12 +42,12 @@ public abstract class DiffBasedAccount implements MutableAccount, AccountValue {
   protected final Map<UInt256, UInt256> updatedStorage = new HashMap<>();
 
   /**
-   * Constructs a new DiffBasedAccount instance without the account's code. This constructor is used
+   * Constructs a new PathBasedAccount instance without the account's code. This constructor is used
    * when the account's code is not required or will not be read from the database. It initializes
    * the account with its context, address, address hash, nonce, balance, code hash, and mutability
    * status.
    *
-   * @param context The DiffBasedWorldView context in which this account exists.
+   * @param context The PathBasedWorldView context in which this account exists.
    * @param address The Ethereum address of this account.
    * @param addressHash The hash of the account's address.
    * @param nonce The nonce of the account, representing the number of transactions sent from this
@@ -57,8 +57,8 @@ public abstract class DiffBasedAccount implements MutableAccount, AccountValue {
    * @param mutable A boolean indicating if the account is mutable. If false, the account is
    *     considered immutable.
    */
-  public DiffBasedAccount(
-      final DiffBasedWorldView context,
+  public PathBasedAccount(
+      final PathBasedWorldView context,
       final Address address,
       final Hash addressHash,
       final long nonce,
@@ -76,12 +76,12 @@ public abstract class DiffBasedAccount implements MutableAccount, AccountValue {
   }
 
   /**
-   * Constructs a new DiffBasedAccount instance with the account's code. This constructor is used
+   * Constructs a new PathBasedAccount instance with the account's code. This constructor is used
    * when all account information, including its code, are available. It initializes the account
    * with its context, address, address hash, nonce, balance, code hash, the actual code, and
    * mutability status.
    *
-   * @param context The DiffBasedWorldView context in which this account exists.
+   * @param context The PathBasedWorldView context in which this account exists.
    * @param address The Ethereum address of this account.
    * @param addressHash The hash of the account's address.
    * @param nonce The nonce of the account, representing the number of transactions sent from this
@@ -93,8 +93,8 @@ public abstract class DiffBasedAccount implements MutableAccount, AccountValue {
    * @param mutable A boolean indicating if the account is mutable. If false, the account is
    *     considered immutable.
    */
-  public DiffBasedAccount(
-      final DiffBasedWorldView context,
+  public PathBasedAccount(
+      final PathBasedWorldView context,
       final Address address,
       final Hash addressHash,
       final long nonce,

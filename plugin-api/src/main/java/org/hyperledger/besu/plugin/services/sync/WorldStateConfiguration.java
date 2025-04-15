@@ -12,15 +12,10 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-package org.hyperledger.besu.plugin.services.sync;
+package org.hyperledger.besu.plugin.services.txselection;
 
-/** interface for worldstate configuration * */
-public interface WorldStateConfiguration {
+import org.hyperledger.besu.plugin.Unstable;
 
-  /**
-   * Returns whether the trie is disabled.
-   *
-   * @return true if the trie is disabled, false otherwise.
-   */
-  boolean isTrieDisabled();
-}
+/** Interface for the transaction selector */
+@Unstable
+public interface TransactionSelector {}

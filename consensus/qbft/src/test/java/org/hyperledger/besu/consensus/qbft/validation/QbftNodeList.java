@@ -12,9 +12,10 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-package org.hyperledger.besu.consensus.qbft.validation;
+package org.hyperledger.besu.consensus.qbft.core.validation;
 
-import org.hyperledger.besu.consensus.qbft.payload.MessageFactory;
+import org.hyperledger.besu.consensus.qbft.core.payload.MessageFactory;
+import org.hyperledger.besu.consensus.qbft.core.types.QbftBlockCodec;
 import org.hyperledger.besu.datatypes.Address;
 
 import java.util.Collection;
@@ -25,11 +26,11 @@ import com.google.common.collect.Lists;
 
 public class QbftNodeList {
 
-  public static QbftNodeList createNodes(final int count) {
+  public static QbftNodeList createNodes(final int count, final QbftBlockCodec blockEncoder) {
     final List<QbftNode> nodes = Lists.newArrayList();
 
     for (int i = 0; i < count; i++) {
-      nodes.add(QbftNode.create());
+      nodes.add(QbftNode.create(blockEncoder));
     }
     return new QbftNodeList(nodes);
   }

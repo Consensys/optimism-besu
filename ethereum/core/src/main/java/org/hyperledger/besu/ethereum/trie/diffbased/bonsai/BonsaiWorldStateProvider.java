@@ -12,20 +12,19 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-package org.hyperledger.besu.ethereum.trie.diffbased.bonsai;
+package org.hyperledger.besu.ethereum.trie.pathbased.bonsai;
 
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.ethereum.chain.Blockchain;
 import org.hyperledger.besu.ethereum.rlp.RLP;
 import org.hyperledger.besu.ethereum.trie.common.PmtStateTrieAccountValue;
-import org.hyperledger.besu.ethereum.trie.diffbased.bonsai.cache.BonsaiCachedMerkleTrieLoader;
-import org.hyperledger.besu.ethereum.trie.diffbased.bonsai.cache.BonsaiCachedWorldStorageManager;
-import org.hyperledger.besu.ethereum.trie.diffbased.bonsai.storage.BonsaiWorldStateKeyValueStorage;
-import org.hyperledger.besu.ethereum.trie.diffbased.bonsai.worldview.BonsaiWorldState;
-import org.hyperledger.besu.ethereum.trie.diffbased.common.DiffBasedWorldStateProvider;
-import org.hyperledger.besu.ethereum.trie.diffbased.common.trielog.TrieLogManager;
-import org.hyperledger.besu.ethereum.trie.diffbased.common.worldview.DiffBasedWorldStateConfig;
+import org.hyperledger.besu.ethereum.trie.pathbased.bonsai.cache.BonsaiCachedMerkleTrieLoader;
+import org.hyperledger.besu.ethereum.trie.pathbased.bonsai.cache.BonsaiCachedWorldStorageManager;
+import org.hyperledger.besu.ethereum.trie.pathbased.bonsai.storage.BonsaiWorldStateKeyValueStorage;
+import org.hyperledger.besu.ethereum.trie.pathbased.bonsai.worldview.BonsaiWorldState;
+import org.hyperledger.besu.ethereum.trie.pathbased.common.provider.PathBasedWorldStateProvider;
+import org.hyperledger.besu.ethereum.trie.pathbased.common.trielog.TrieLogManager;
 import org.hyperledger.besu.ethereum.trie.patricia.StoredMerklePatriciaTrie;
 import org.hyperledger.besu.evm.internal.EvmConfiguration;
 import org.hyperledger.besu.plugin.ServiceManager;
@@ -41,7 +40,7 @@ import org.apache.tuweni.bytes.Bytes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class BonsaiWorldStateProvider extends DiffBasedWorldStateProvider {
+public class BonsaiWorldStateProvider extends PathBasedWorldStateProvider {
 
   private static final Logger LOG = LoggerFactory.getLogger(BonsaiWorldStateProvider.class);
   private final BonsaiCachedMerkleTrieLoader bonsaiCachedMerkleTrieLoader;
@@ -59,11 +58,9 @@ public class BonsaiWorldStateProvider extends DiffBasedWorldStateProvider {
     this.bonsaiCachedMerkleTrieLoader = bonsaiCachedMerkleTrieLoader;
     this.worldStateHealerSupplier = worldStateHealerSupplier;
     provideCachedWorldStorageManager(
-        new BonsaiCachedWorldStorageManager(
-            this, worldStateKeyValueStorage, this::cloneBonsaiWorldStateConfig));
-    loadPersistedState(
-        new BonsaiWorldState(
-            this, worldStateKeyValueStorage, evmConfiguration, defaultWorldStateConfig));
+        new BonsaiCachedWorldStorageManager(this, worldStateKeyValueStorage, worldStateConfig));
+    loadHeadWorldState(
+        new BonsaiWorldState(this, worldStateKeyValueStorage, evmConfiguration, worldStateConfig));
   }
 
   @VisibleForTesting
@@ -79,9 +76,8 @@ public class BonsaiWorldStateProvider extends DiffBasedWorldStateProvider {
     this.bonsaiCachedMerkleTrieLoader = bonsaiCachedMerkleTrieLoader;
     this.worldStateHealerSupplier = worldStateHealerSupplier;
     provideCachedWorldStorageManager(bonsaiCachedWorldStorageManager);
-    loadPersistedState(
-        new BonsaiWorldState(
-            this, worldStateKeyValueStorage, evmConfiguration, defaultWorldStateConfig));
+    loadHeadWorldState(
+        new BonsaiWorldState(this, worldStateKeyValueStorage, evmConfiguration, worldStateConfig));
   }
 
   public BonsaiCachedMerkleTrieLoader getCachedMerkleTrieLoader() {
@@ -113,7 +109,7 @@ public class BonsaiWorldStateProvider extends DiffBasedWorldStateProvider {
               }
               return node;
             },
-            persistedState.getWorldStateRootHash(),
+            headWorldState.getWorldStateRootHash(),
             Function.identity(),
             Function.identity());
     try {
@@ -152,10 +148,6 @@ public class BonsaiWorldStateProvider extends DiffBasedWorldStateProvider {
     updater.commit();
 
     getBonsaiWorldStateKeyValueStorage().downgradeToPartialFlatDbMode();
-  }
-
-  private DiffBasedWorldStateConfig cloneBonsaiWorldStateConfig() {
-    return new DiffBasedWorldStateConfig(defaultWorldStateConfig);
   }
 
   @Override

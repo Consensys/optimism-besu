@@ -12,13 +12,13 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-package org.hyperledger.besu.ethereum.trie.diffbased.bonsai.cache;
+package org.hyperledger.besu.ethereum.trie.pathbased.bonsai.cache;
 
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.ethereum.core.BlockHeader;
-import org.hyperledger.besu.ethereum.trie.diffbased.bonsai.storage.BonsaiWorldStateKeyValueStorage;
-import org.hyperledger.besu.ethereum.trie.diffbased.common.worldview.DiffBasedWorldState;
-import org.hyperledger.besu.ethereum.trie.diffbased.common.worldview.DiffBasedWorldStateConfig;
+import org.hyperledger.besu.ethereum.trie.pathbased.bonsai.storage.BonsaiWorldStateKeyValueStorage;
+import org.hyperledger.besu.ethereum.trie.pathbased.common.worldview.PathBasedWorldState;
+import org.hyperledger.besu.ethereum.trie.pathbased.common.worldview.WorldStateConfig;
 
 import java.util.Optional;
 import java.util.function.Function;
@@ -27,14 +27,14 @@ public class NoOpBonsaiCachedWorldStorageManager extends BonsaiCachedWorldStorag
 
   public NoOpBonsaiCachedWorldStorageManager(
       final BonsaiWorldStateKeyValueStorage bonsaiWorldStateKeyValueStorage) {
-    super(null, bonsaiWorldStateKeyValueStorage, DiffBasedWorldStateConfig::new);
+    super(null, bonsaiWorldStateKeyValueStorage, WorldStateConfig.createStatefulConfigWithTrie());
   }
 
   @Override
   public synchronized void addCachedLayer(
       final BlockHeader blockHeader,
       final Hash worldStateRootHash,
-      final DiffBasedWorldState forWorldState) {
+      final PathBasedWorldState forWorldState) {
     // no cache
   }
 
@@ -44,17 +44,17 @@ public class NoOpBonsaiCachedWorldStorageManager extends BonsaiCachedWorldStorag
   }
 
   @Override
-  public Optional<DiffBasedWorldState> getWorldState(final Hash blockHash) {
+  public Optional<PathBasedWorldState> getWorldState(final Hash blockHash) {
     return Optional.empty();
   }
 
   @Override
-  public Optional<DiffBasedWorldState> getNearestWorldState(final BlockHeader blockHeader) {
+  public Optional<PathBasedWorldState> getNearestWorldState(final BlockHeader blockHeader) {
     return Optional.empty();
   }
 
   @Override
-  public Optional<DiffBasedWorldState> getHeadWorldState(
+  public Optional<PathBasedWorldState> getHeadWorldState(
       final Function<Hash, Optional<BlockHeader>> hashBlockHeaderFunction) {
     return Optional.empty();
   }

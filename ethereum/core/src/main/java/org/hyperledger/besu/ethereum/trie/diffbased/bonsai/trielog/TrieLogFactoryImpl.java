@@ -12,7 +12,7 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-package org.hyperledger.besu.ethereum.trie.diffbased.bonsai.trielog;
+package org.hyperledger.besu.ethereum.trie.pathbased.bonsai.trielog;
 
 import org.hyperledger.besu.datatypes.AccountValue;
 import org.hyperledger.besu.datatypes.Address;
@@ -23,8 +23,8 @@ import org.hyperledger.besu.ethereum.rlp.BytesValueRLPOutput;
 import org.hyperledger.besu.ethereum.rlp.RLPInput;
 import org.hyperledger.besu.ethereum.rlp.RLPOutput;
 import org.hyperledger.besu.ethereum.trie.common.PmtStateTrieAccountValue;
-import org.hyperledger.besu.ethereum.trie.diffbased.common.DiffBasedValue;
-import org.hyperledger.besu.ethereum.trie.diffbased.common.trielog.TrieLogLayer;
+import org.hyperledger.besu.ethereum.trie.pathbased.common.PathBasedValue;
+import org.hyperledger.besu.ethereum.trie.pathbased.common.trielog.TrieLogLayer;
 import org.hyperledger.besu.plugin.data.BlockHeader;
 import org.hyperledger.besu.plugin.services.trielogs.TrieLog;
 import org.hyperledger.besu.plugin.services.trielogs.TrieLogAccumulator;
@@ -168,7 +168,7 @@ public class TrieLogFactoryImpl implements TrieLogFactory {
         input.leaveList();
         newLayer
             .getAccountChanges()
-            .put(address, new DiffBasedValue<>(oldValue, newValue, isCleared));
+            .put(address, new PathBasedValue<>(oldValue, newValue, isCleared));
       }
 
       if (input.nextIsNull()) {
@@ -179,13 +179,13 @@ public class TrieLogFactoryImpl implements TrieLogFactory {
         final Bytes newCode = nullOrValue(input, RLPInput::readBytes);
         final boolean isCleared = getOptionalIsCleared(input);
         input.leaveList();
-        newLayer.getCodeChanges().put(address, new DiffBasedValue<>(oldCode, newCode, isCleared));
+        newLayer.getCodeChanges().put(address, new PathBasedValue<>(oldCode, newCode, isCleared));
       }
 
       if (input.nextIsNull()) {
         input.skipNext();
       } else {
-        final Map<StorageSlotKey, DiffBasedValue<UInt256>> storageChanges = new TreeMap<>();
+        final Map<StorageSlotKey, PathBasedValue<UInt256>> storageChanges = new TreeMap<>();
         input.enterList();
         while (!input.isEndOfCurrentList()) {
           input.enterList();
@@ -194,7 +194,7 @@ public class TrieLogFactoryImpl implements TrieLogFactory {
           final UInt256 oldValue = nullOrValue(input, RLPInput::readUInt256Scalar);
           final UInt256 newValue = nullOrValue(input, RLPInput::readUInt256Scalar);
           final boolean isCleared = getOptionalIsCleared(input);
-          storageChanges.put(storageSlotKey, new DiffBasedValue<>(oldValue, newValue, isCleared));
+          storageChanges.put(storageSlotKey, new PathBasedValue<>(oldValue, newValue, isCleared));
           input.leaveList();
         }
         input.leaveList();

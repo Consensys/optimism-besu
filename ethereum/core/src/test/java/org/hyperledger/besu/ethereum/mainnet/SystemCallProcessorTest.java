@@ -22,26 +22,32 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import org.hyperledger.besu.datatypes.Address;
+import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.ethereum.core.InMemoryKeyValueStorageProvider;
 import org.hyperledger.besu.ethereum.core.MutableWorldState;
 import org.hyperledger.besu.ethereum.core.ProcessableBlockHeader;
+import org.hyperledger.besu.ethereum.mainnet.systemcall.BlockProcessingContext;
+import org.hyperledger.besu.ethereum.mainnet.systemcall.SystemCallProcessor;
+import org.hyperledger.besu.evm.blockhash.BlockHashLookup;
+import org.hyperledger.besu.evm.frame.ExceptionalHaltReason;
 import org.hyperledger.besu.evm.frame.MessageFrame;
-import org.hyperledger.besu.evm.operation.BlockHashOperation;
 import org.hyperledger.besu.evm.processor.AbstractMessageProcessor;
 import org.hyperledger.besu.evm.processor.MessageCallProcessor;
 import org.hyperledger.besu.evm.tracing.OperationTracer;
 import org.hyperledger.besu.evm.worldstate.WorldUpdater;
 
+import java.util.Optional;
+
 import org.apache.tuweni.bytes.Bytes;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-public class SystemCallProcessorTest {
+public class MainnetBlockContextProcessorTest {
   private static final Address CALL_ADDRESS = Address.fromHexString("0x1");
   private static final Bytes EXPECTED_OUTPUT = Bytes.fromHexString("0x01");
   private ProcessableBlockHeader mockBlockHeader;
   private MainnetTransactionProcessor mockTransactionProcessor;
-  private BlockHashOperation.BlockHashLookup mockBlockHashLookup;
+  private BlockHashLookup mockBlockHashLookup;
   private AbstractMessageProcessor mockMessageCallProcessor;
 
   @BeforeEach
@@ -49,7 +55,7 @@ public class SystemCallProcessorTest {
     mockBlockHeader = mock(ProcessableBlockHeader.class);
     mockTransactionProcessor = mock(MainnetTransactionProcessor.class);
     mockMessageCallProcessor = mock(MessageCallProcessor.class);
-    mockBlockHashLookup = mock(BlockHashOperation.BlockHashLookup.class);
+    mockBlockHashLookup = mock(BlockHashLookup.class);
     when(mockTransactionProcessor.getMessageProcessor(any())).thenReturn(mockMessageCallProcessor);
   }
 
@@ -87,6 +93,24 @@ public class SystemCallProcessorTest {
   }
 
   @Test
+  void shouldThrowExceptionOnFailedExecutionWithHaltReason() {
+    doAnswer(
+            invocation -> {
+              MessageFrame messageFrame = invocation.getArgument(0);
+              messageFrame.getMessageFrameStack().pop();
+              messageFrame.setState(MessageFrame.State.COMPLETED_FAILED);
+              messageFrame.setExceptionalHaltReason(
+                  Optional.of(ExceptionalHaltReason.INSUFFICIENT_STACK_ITEMS));
+              return null;
+            })
+        .when(mockMessageCallProcessor)
+        .process(any(), any());
+    final MutableWorldState worldState = createWorldState(CALL_ADDRESS);
+    var exception = assertThrows(RuntimeException.class, () -> processSystemCall(worldState));
+    assertThat(exception.getMessage()).isEqualTo("System call halted: Stack underflow");
+  }
+
+  @Test
   void shouldReturnEmptyWhenContractDoesNotExist() {
     final MutableWorldState worldState = InMemoryKeyValueStorageProvider.createInMemoryWorldState();
     Bytes actualOutput = processSystemCall(worldState);
@@ -95,12 +119,17 @@ public class SystemCallProcessorTest {
 
   Bytes processSystemCall(final MutableWorldState worldState) {
     SystemCallProcessor systemCallProcessor = new SystemCallProcessor(mockTransactionProcessor);
-    return systemCallProcessor.process(
-        CALL_ADDRESS,
-        worldState.updater(),
-        mockBlockHeader,
-        OperationTracer.NO_TRACING,
-        mockBlockHashLookup);
+
+    BlockProcessingContext blockProcessingContext =
+        new BlockProcessingContext(
+            mockBlockHeader,
+            worldState,
+            mock(ProtocolSpec.class),
+            mockBlockHashLookup,
+            OperationTracer.NO_TRACING);
+
+    when(mockBlockHashLookup.apply(any(), any())).thenReturn(Hash.EMPTY);
+    return systemCallProcessor.process(CALL_ADDRESS, blockProcessingContext, Bytes.EMPTY);
   }
 
   private MutableWorldState createWorldState(final Address address) {

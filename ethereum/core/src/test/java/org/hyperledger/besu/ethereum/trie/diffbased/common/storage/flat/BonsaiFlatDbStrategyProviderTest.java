@@ -12,20 +12,20 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-package org.hyperledger.besu.ethereum.trie.diffbased.common.storage.flat;
+package org.hyperledger.besu.ethereum.trie.pathbased.common.storage.flat;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.ethereum.storage.keyvalue.KeyValueSegmentIdentifier;
-import org.hyperledger.besu.ethereum.trie.diffbased.bonsai.storage.flat.BonsaiFlatDbStrategyProvider;
-import org.hyperledger.besu.ethereum.trie.diffbased.bonsai.storage.flat.BonsaiFullFlatDbStrategy;
-import org.hyperledger.besu.ethereum.trie.diffbased.bonsai.storage.flat.BonsaiPartialFlatDbStrategy;
+import org.hyperledger.besu.ethereum.trie.pathbased.bonsai.storage.flat.BonsaiFlatDbStrategyProvider;
+import org.hyperledger.besu.ethereum.trie.pathbased.bonsai.storage.flat.BonsaiFullFlatDbStrategy;
+import org.hyperledger.besu.ethereum.trie.pathbased.bonsai.storage.flat.BonsaiPartialFlatDbStrategy;
 import org.hyperledger.besu.ethereum.worldstate.DataStorageConfiguration;
-import org.hyperledger.besu.ethereum.worldstate.DiffBasedSubStorageConfiguration;
 import org.hyperledger.besu.ethereum.worldstate.FlatDbMode;
 import org.hyperledger.besu.ethereum.worldstate.ImmutableDataStorageConfiguration;
-import org.hyperledger.besu.ethereum.worldstate.ImmutableDiffBasedSubStorageConfiguration;
+import org.hyperledger.besu.ethereum.worldstate.ImmutablePathBasedExtraStorageConfiguration;
+import org.hyperledger.besu.ethereum.worldstate.PathBasedExtraStorageConfiguration;
 import org.hyperledger.besu.metrics.noop.NoOpMetricsSystem;
 import org.hyperledger.besu.plugin.services.storage.DataStorageFormat;
 import org.hyperledger.besu.plugin.services.storage.SegmentedKeyValueStorage;
@@ -88,11 +88,11 @@ class BonsaiFlatDbStrategyProviderTest {
     final DataStorageConfiguration dataStorageConfiguration =
         ImmutableDataStorageConfiguration.builder()
             .dataStorageFormat(DataStorageFormat.BONSAI)
-            .diffBasedSubStorageConfiguration(
-                ImmutableDiffBasedSubStorageConfiguration.builder()
-                    .maxLayersToLoad(DiffBasedSubStorageConfiguration.DEFAULT_MAX_LAYERS_TO_LOAD)
+            .pathBasedExtraStorageConfiguration(
+                ImmutablePathBasedExtraStorageConfiguration.builder()
+                    .maxLayersToLoad(PathBasedExtraStorageConfiguration.DEFAULT_MAX_LAYERS_TO_LOAD)
                     .unstable(
-                        ImmutableDiffBasedSubStorageConfiguration.DiffBasedUnstable.builder()
+                        ImmutablePathBasedExtraStorageConfiguration.PathBasedUnstable.builder()
                             .codeStoredByCodeHashEnabled(codeByHashEnabled)
                             .build())
                     .build())
@@ -116,11 +116,11 @@ class BonsaiFlatDbStrategyProviderTest {
     final DataStorageConfiguration dataStorageConfiguration =
         ImmutableDataStorageConfiguration.builder()
             .dataStorageFormat(DataStorageFormat.BONSAI)
-            .diffBasedSubStorageConfiguration(
-                ImmutableDiffBasedSubStorageConfiguration.builder()
-                    .maxLayersToLoad(DiffBasedSubStorageConfiguration.DEFAULT_MAX_LAYERS_TO_LOAD)
+            .pathBasedExtraStorageConfiguration(
+                ImmutablePathBasedExtraStorageConfiguration.builder()
+                    .maxLayersToLoad(PathBasedExtraStorageConfiguration.DEFAULT_MAX_LAYERS_TO_LOAD)
                     .unstable(
-                        ImmutableDiffBasedSubStorageConfiguration.DiffBasedUnstable.builder()
+                        ImmutablePathBasedExtraStorageConfiguration.PathBasedUnstable.builder()
                             .codeStoredByCodeHashEnabled(codeByHashEnabled)
                             .build())
                     .build())
@@ -149,11 +149,11 @@ class BonsaiFlatDbStrategyProviderTest {
     final DataStorageConfiguration dataStorageConfiguration =
         ImmutableDataStorageConfiguration.builder()
             .dataStorageFormat(DataStorageFormat.BONSAI)
-            .diffBasedSubStorageConfiguration(
-                ImmutableDiffBasedSubStorageConfiguration.builder()
-                    .maxLayersToLoad(DiffBasedSubStorageConfiguration.DEFAULT_MAX_LAYERS_TO_LOAD)
+            .pathBasedExtraStorageConfiguration(
+                ImmutablePathBasedExtraStorageConfiguration.builder()
+                    .maxLayersToLoad(PathBasedExtraStorageConfiguration.DEFAULT_MAX_LAYERS_TO_LOAD)
                     .unstable(
-                        ImmutableDiffBasedSubStorageConfiguration.DiffBasedUnstable.builder()
+                        ImmutablePathBasedExtraStorageConfiguration.PathBasedUnstable.builder()
                             .codeStoredByCodeHashEnabled(codeByHashEnabled)
                             .build())
                     .build())

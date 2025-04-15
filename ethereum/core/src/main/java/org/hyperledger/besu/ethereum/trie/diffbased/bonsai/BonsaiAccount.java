@@ -12,7 +12,7 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-package org.hyperledger.besu.ethereum.trie.diffbased.bonsai;
+package org.hyperledger.besu.ethereum.trie.pathbased.bonsai;
 
 import org.hyperledger.besu.datatypes.AccountValue;
 import org.hyperledger.besu.datatypes.Address;
@@ -22,9 +22,9 @@ import org.hyperledger.besu.ethereum.rlp.RLP;
 import org.hyperledger.besu.ethereum.rlp.RLPException;
 import org.hyperledger.besu.ethereum.rlp.RLPInput;
 import org.hyperledger.besu.ethereum.rlp.RLPOutput;
-import org.hyperledger.besu.ethereum.trie.diffbased.bonsai.storage.BonsaiWorldStateKeyValueStorage;
-import org.hyperledger.besu.ethereum.trie.diffbased.common.DiffBasedAccount;
-import org.hyperledger.besu.ethereum.trie.diffbased.common.worldview.DiffBasedWorldView;
+import org.hyperledger.besu.ethereum.trie.pathbased.bonsai.storage.BonsaiWorldStateKeyValueStorage;
+import org.hyperledger.besu.ethereum.trie.pathbased.common.PathBasedAccount;
+import org.hyperledger.besu.ethereum.trie.pathbased.common.worldview.PathBasedWorldView;
 import org.hyperledger.besu.evm.ModificationNotAllowedException;
 import org.hyperledger.besu.evm.account.AccountStorageEntry;
 import org.hyperledger.besu.evm.worldstate.UpdateTrackingAccount;
@@ -35,11 +35,11 @@ import java.util.Objects;
 import org.apache.tuweni.bytes.Bytes;
 import org.apache.tuweni.bytes.Bytes32;
 
-public class BonsaiAccount extends DiffBasedAccount {
+public class BonsaiAccount extends PathBasedAccount {
   private Hash storageRoot;
 
   public BonsaiAccount(
-      final DiffBasedWorldView context,
+      final PathBasedWorldView context,
       final Address address,
       final Hash addressHash,
       final long nonce,
@@ -52,7 +52,7 @@ public class BonsaiAccount extends DiffBasedAccount {
   }
 
   public BonsaiAccount(
-      final DiffBasedWorldView context,
+      final PathBasedWorldView context,
       final Address address,
       final AccountValue stateTrieAccount,
       final boolean mutable) {
@@ -72,7 +72,7 @@ public class BonsaiAccount extends DiffBasedAccount {
   }
 
   public BonsaiAccount(
-      final BonsaiAccount toCopy, final DiffBasedWorldView context, final boolean mutable) {
+      final BonsaiAccount toCopy, final PathBasedWorldView context, final boolean mutable) {
     super(
         context,
         toCopy.address,
@@ -87,7 +87,7 @@ public class BonsaiAccount extends DiffBasedAccount {
   }
 
   public BonsaiAccount(
-      final DiffBasedWorldView context, final UpdateTrackingAccount<BonsaiAccount> tracked) {
+      final PathBasedWorldView context, final UpdateTrackingAccount<BonsaiAccount> tracked) {
     super(
         context,
         tracked.getAddress(),
@@ -102,7 +102,7 @@ public class BonsaiAccount extends DiffBasedAccount {
   }
 
   public static BonsaiAccount fromRLP(
-      final DiffBasedWorldView context,
+      final PathBasedWorldView context,
       final Address address,
       final Bytes encoded,
       final boolean mutable)

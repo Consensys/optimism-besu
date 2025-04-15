@@ -12,39 +12,39 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-package org.hyperledger.besu.config;
+package org.hyperledger.besu.consensus.qbft.core.types;
 
-import java.util.Map;
-import java.util.OptionalLong;
+import org.hyperledger.besu.datatypes.Address;
+import org.hyperledger.besu.datatypes.Hash;
 
-/** interface for Optimisim Config Options. */
-public interface OptimismConfigOptions {
-
-  /**
-   * Gets EIP1559 elasticity.
-   *
-   * @return the EIP1559 elasticity
-   */
-  OptionalLong getEIP1559Elasticity();
+/** Represents a block header in the context of the QBFT consensus mechanism. */
+public interface QbftBlockHeader {
 
   /**
-   * Gets EIP1559 denominator.
+   * Returns the block number of the block.
    *
-   * @return the EIP1559 denominator
+   * @return the block number.
    */
-  OptionalLong getEIP1559Denominator();
+  long getNumber();
 
   /**
-   * Gets EIP1559 denominatorCanyon.
+   * Returns the timestamp of the block.
    *
-   * @return the EIP1559 denominatorCanyon
+   * @return the timestamp.
    */
-  OptionalLong getEIP1559DenominatorCanyon();
+  long getTimestamp();
 
   /**
-   * As map.
+   * Returns the coinbase of the block.
    *
-   * @return the map
+   * @return the coinbase.
    */
-  Map<String, Object> asMap();
+  Address getCoinbase();
+
+  /**
+   * Returns the hash of the block.
+   *
+   * @return the hash.
+   */
+  Hash getHash();
 }

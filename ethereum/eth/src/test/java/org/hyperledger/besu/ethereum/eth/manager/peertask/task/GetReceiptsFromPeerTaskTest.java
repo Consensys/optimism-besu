@@ -21,7 +21,8 @@ import org.hyperledger.besu.ethereum.eth.EthProtocol;
 import org.hyperledger.besu.ethereum.eth.manager.ChainState;
 import org.hyperledger.besu.ethereum.eth.manager.EthPeer;
 import org.hyperledger.besu.ethereum.eth.manager.peertask.InvalidPeerTaskResponseException;
-import org.hyperledger.besu.ethereum.eth.messages.EthPV63;
+import org.hyperledger.besu.ethereum.eth.manager.peertask.PeerTaskValidationResponse;
+import org.hyperledger.besu.ethereum.eth.messages.EthProtocolMessages;
 import org.hyperledger.besu.ethereum.eth.messages.GetReceiptsMessage;
 import org.hyperledger.besu.ethereum.eth.messages.ReceiptsMessage;
 import org.hyperledger.besu.ethereum.mainnet.BodyValidation;
@@ -74,7 +75,7 @@ public class GetReceiptsFromPeerTaskTest {
     MessageData messageData = task.getRequestMessage();
     GetReceiptsMessage getReceiptsMessage = GetReceiptsMessage.readFrom(messageData);
 
-    Assertions.assertEquals(EthPV63.GET_RECEIPTS, getReceiptsMessage.getCode());
+    Assertions.assertEquals(EthProtocolMessages.GET_RECEIPTS, getReceiptsMessage.getCode());
     Iterable<Hash> hashesInMessage = getReceiptsMessage.hashes();
     List<Hash> expectedHashes =
         List.of(
@@ -222,20 +223,23 @@ public class GetReceiptsFromPeerTaskTest {
   }
 
   @Test
-  public void testIsSuccessForPartialSuccess() {
+  public void testValidateResultForPartialSuccess() {
     GetReceiptsFromPeerTask task = new GetReceiptsFromPeerTask(Collections.emptyList(), null);
 
-    Assertions.assertFalse(task.isSuccess(Collections.emptyMap()));
+    Assertions.assertEquals(
+        PeerTaskValidationResponse.NO_RESULTS_RETURNED,
+        task.validateResult(Collections.emptyMap()));
   }
 
   @Test
-  public void testIsSuccessForFullSuccess() {
+  public void testValidateResultForFullSuccess() {
     GetReceiptsFromPeerTask task = new GetReceiptsFromPeerTask(Collections.emptyList(), null);
 
     Map<BlockHeader, List<TransactionReceipt>> map = new HashMap<>();
     map.put(mockBlockHeader(1), null);
 
-    Assertions.assertTrue(task.isSuccess(map));
+    Assertions.assertEquals(
+        PeerTaskValidationResponse.RESULTS_VALID_AND_GOOD, task.validateResult(map));
   }
 
   private BlockHeader mockBlockHeader(final long blockNumber) {

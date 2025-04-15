@@ -12,30 +12,30 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-package org.hyperledger.besu.consensus.qbft.support;
+package org.hyperledger.besu.consensus.qbft.core.support;
 
-import static org.hyperledger.besu.consensus.qbft.support.IntegrationTestHelpers.createCommitBlockFromProposalBlock;
+import static org.hyperledger.besu.consensus.qbft.core.support.IntegrationTestHelpers.createCommitBlockFromProposalBlock;
 
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
 import org.hyperledger.besu.consensus.common.bft.EventMultiplexer;
 import org.hyperledger.besu.consensus.common.bft.inttest.DefaultValidatorPeer;
 import org.hyperledger.besu.consensus.common.bft.inttest.NodeParams;
 import org.hyperledger.besu.consensus.common.bft.payload.SignedData;
-import org.hyperledger.besu.consensus.qbft.messagedata.CommitMessageData;
-import org.hyperledger.besu.consensus.qbft.messagedata.PrepareMessageData;
-import org.hyperledger.besu.consensus.qbft.messagedata.ProposalMessageData;
-import org.hyperledger.besu.consensus.qbft.messagedata.RoundChangeMessageData;
-import org.hyperledger.besu.consensus.qbft.messagewrappers.Commit;
-import org.hyperledger.besu.consensus.qbft.messagewrappers.Prepare;
-import org.hyperledger.besu.consensus.qbft.messagewrappers.Proposal;
-import org.hyperledger.besu.consensus.qbft.messagewrappers.RoundChange;
-import org.hyperledger.besu.consensus.qbft.payload.MessageFactory;
-import org.hyperledger.besu.consensus.qbft.payload.PreparePayload;
-import org.hyperledger.besu.consensus.qbft.payload.RoundChangePayload;
-import org.hyperledger.besu.consensus.qbft.statemachine.PreparedCertificate;
+import org.hyperledger.besu.consensus.qbft.core.messagedata.CommitMessageData;
+import org.hyperledger.besu.consensus.qbft.core.messagedata.PrepareMessageData;
+import org.hyperledger.besu.consensus.qbft.core.messagedata.ProposalMessageData;
+import org.hyperledger.besu.consensus.qbft.core.messagedata.RoundChangeMessageData;
+import org.hyperledger.besu.consensus.qbft.core.messagewrappers.Commit;
+import org.hyperledger.besu.consensus.qbft.core.messagewrappers.Prepare;
+import org.hyperledger.besu.consensus.qbft.core.messagewrappers.Proposal;
+import org.hyperledger.besu.consensus.qbft.core.messagewrappers.RoundChange;
+import org.hyperledger.besu.consensus.qbft.core.payload.MessageFactory;
+import org.hyperledger.besu.consensus.qbft.core.payload.PreparePayload;
+import org.hyperledger.besu.consensus.qbft.core.payload.RoundChangePayload;
+import org.hyperledger.besu.consensus.qbft.core.statemachine.PreparedCertificate;
+import org.hyperledger.besu.consensus.qbft.core.types.QbftBlock;
 import org.hyperledger.besu.crypto.SECPSignature;
 import org.hyperledger.besu.datatypes.Hash;
-import org.hyperledger.besu.ethereum.core.Block;
 
 import java.util.Collections;
 import java.util.List;
@@ -54,7 +54,7 @@ public class ValidatorPeer extends DefaultValidatorPeer {
     this.messageFactory = messageFactory;
   }
 
-  public Proposal injectProposal(final ConsensusRoundIdentifier rId, final Block block) {
+  public Proposal injectProposal(final ConsensusRoundIdentifier rId, final QbftBlock block) {
     return injectProposalForFutureRound(
         rId, Collections.emptyList(), Collections.emptyList(), block);
   }
@@ -65,8 +65,8 @@ public class ValidatorPeer extends DefaultValidatorPeer {
     return payload;
   }
 
-  public Commit injectCommit(final ConsensusRoundIdentifier rId, final Block block) {
-    final Block commitBlock = createCommitBlockFromProposalBlock(block, rId.getRoundNumber());
+  public Commit injectCommit(final ConsensusRoundIdentifier rId, final QbftBlock block) {
+    final QbftBlock commitBlock = createCommitBlockFromProposalBlock(block, rId.getRoundNumber());
     final SECPSignature commitSeal = nodeKey.sign(commitBlock.getHash());
     return injectCommit(rId, block.getHash(), commitSeal);
   }
@@ -82,7 +82,7 @@ public class ValidatorPeer extends DefaultValidatorPeer {
       final ConsensusRoundIdentifier rId,
       final List<SignedData<RoundChangePayload>> roundChanges,
       final List<SignedData<PreparePayload>> prepares,
-      final Block blockToPropose) {
+      final QbftBlock blockToPropose) {
 
     final Proposal payload =
         messageFactory.createProposal(rId, blockToPropose, roundChanges, prepares);

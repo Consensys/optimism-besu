@@ -12,7 +12,7 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-package org.hyperledger.besu.ethereum.trie.diffbased.common.storage;
+package org.hyperledger.besu.ethereum.trie.pathbased.common.storage;
 
 import static org.hyperledger.besu.ethereum.storage.keyvalue.KeyValueSegmentIdentifier.ACCOUNT_INFO_STATE;
 import static org.hyperledger.besu.ethereum.storage.keyvalue.KeyValueSegmentIdentifier.ACCOUNT_STORAGE_STORAGE;
@@ -22,8 +22,8 @@ import static org.hyperledger.besu.ethereum.storage.keyvalue.KeyValueSegmentIden
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.ethereum.storage.StorageProvider;
 import org.hyperledger.besu.ethereum.storage.keyvalue.KeyValueSegmentIdentifier;
-import org.hyperledger.besu.ethereum.trie.diffbased.common.StorageSubscriber;
-import org.hyperledger.besu.ethereum.trie.diffbased.common.storage.flat.FlatDbStrategy;
+import org.hyperledger.besu.ethereum.trie.pathbased.common.StorageSubscriber;
+import org.hyperledger.besu.ethereum.trie.pathbased.common.storage.flat.FlatDbStrategy;
 import org.hyperledger.besu.ethereum.worldstate.FlatDbMode;
 import org.hyperledger.besu.ethereum.worldstate.WorldStateKeyValueStorage;
 import org.hyperledger.besu.plugin.services.storage.DataStorageFormat;
@@ -47,10 +47,10 @@ import org.apache.tuweni.bytes.Bytes32;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public abstract class DiffBasedWorldStateKeyValueStorage
+public abstract class PathBasedWorldStateKeyValueStorage
     implements WorldStateKeyValueStorage, AutoCloseable {
   private static final Logger LOG =
-      LoggerFactory.getLogger(DiffBasedWorldStateKeyValueStorage.class);
+      LoggerFactory.getLogger(PathBasedWorldStateKeyValueStorage.class);
 
   // 0x776f726c64526f6f74
   public static final byte[] WORLD_ROOT_HASH_KEY = "worldRoot".getBytes(StandardCharsets.UTF_8);
@@ -66,7 +66,7 @@ public abstract class DiffBasedWorldStateKeyValueStorage
   protected final SegmentedKeyValueStorage composedWorldStateStorage;
   protected final KeyValueStorage trieLogStorage;
 
-  public DiffBasedWorldStateKeyValueStorage(final StorageProvider provider) {
+  public PathBasedWorldStateKeyValueStorage(final StorageProvider provider) {
     this.composedWorldStateStorage =
         provider.getStorageBySegmentIdentifiers(
             List.of(
@@ -75,7 +75,7 @@ public abstract class DiffBasedWorldStateKeyValueStorage
         provider.getStorageBySegmentIdentifier(KeyValueSegmentIdentifier.TRIE_LOG_STORAGE);
   }
 
-  public DiffBasedWorldStateKeyValueStorage(
+  public PathBasedWorldStateKeyValueStorage(
       final SegmentedKeyValueStorage composedWorldStateStorage,
       final KeyValueStorage trieLogStorage) {
     this.composedWorldStateStorage = composedWorldStateStorage;
@@ -240,7 +240,7 @@ public abstract class DiffBasedWorldStateKeyValueStorage
 
   public interface Updater extends WorldStateKeyValueStorage.Updater {
 
-    DiffBasedWorldStateKeyValueStorage.Updater saveWorldState(
+    PathBasedWorldStateKeyValueStorage.Updater saveWorldState(
         final Bytes blockHash, final Bytes32 nodeHash, final Bytes node);
 
     SegmentedKeyValueStorageTransaction getWorldStateTransaction();
@@ -249,6 +249,10 @@ public abstract class DiffBasedWorldStateKeyValueStorage
 
     @Override
     void commit();
+
+    void commitTrieLogOnly();
+
+    void commitComposedOnly();
 
     void rollback();
   }

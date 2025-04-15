@@ -12,11 +12,11 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-package org.hyperledger.besu.consensus.qbft.statemachine;
+package org.hyperledger.besu.consensus.qbft.core.statemachine;
 
 import org.hyperledger.besu.consensus.common.bft.payload.SignedData;
-import org.hyperledger.besu.consensus.qbft.messagewrappers.RoundChange;
-import org.hyperledger.besu.consensus.qbft.payload.RoundChangePayload;
+import org.hyperledger.besu.consensus.qbft.core.messagewrappers.RoundChange;
+import org.hyperledger.besu.consensus.qbft.core.payload.RoundChangePayload;
 
 import java.util.Collection;
 import java.util.Comparator;

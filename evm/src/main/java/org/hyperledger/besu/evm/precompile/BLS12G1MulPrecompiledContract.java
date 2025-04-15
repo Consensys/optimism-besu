@@ -1,5 +1,5 @@
 /*
- * Copyright ConsenSys AG.
+ * Copyright contributors to Besu.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -12,24 +12,25 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-package org.hyperledger.besu.evm.precompile;
+package org.hyperledger.besu.ethereum.p2p.discovery.internal.packet.validation;
 
-import org.hyperledger.besu.nativelib.gnark.LibGnarkEIP2537;
+import static com.google.common.base.Preconditions.checkArgument;
+
+import org.hyperledger.besu.ethereum.p2p.discovery.internal.packet.findneighbors.FindNeighborsPacketData;
+
+import javax.inject.Inject;
+import javax.inject.Singleton;
 
 import org.apache.tuweni.bytes.Bytes;
 
-/** The BLS12G1 Mul precompiled contract. */
-public class BLS12G1MulPrecompiledContract extends AbstractBLS12PrecompiledContract {
+@Singleton
+public class TargetValidator {
 
-  private static final int PARAMETER_LENGTH = 160;
+  public @Inject TargetValidator() {}
 
-  /** Instantiates a new BLS12G1 Mul precompiled contract. */
-  public BLS12G1MulPrecompiledContract() {
-    super("BLS12_G1MUL", LibGnarkEIP2537.BLS12_G1MUL_OPERATION_SHIM_VALUE, PARAMETER_LENGTH);
-  }
-
-  @Override
-  public long gasRequirement(final Bytes input) {
-    return 12_000L;
+  public void validate(final Bytes target) {
+    checkArgument(
+        target != null && target.size() == FindNeighborsPacketData.TARGET_SIZE,
+        "target must be a valid node id");
   }
 }

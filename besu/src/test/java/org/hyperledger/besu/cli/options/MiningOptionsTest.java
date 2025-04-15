@@ -23,7 +23,6 @@ import static org.mockito.Mockito.verify;
 
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.Wei;
-import org.hyperledger.besu.ethereum.GasLimitCalculator;
 import org.hyperledger.besu.ethereum.core.ImmutableMiningConfiguration;
 import org.hyperledger.besu.ethereum.core.ImmutableMiningConfiguration.MutableInitValues;
 import org.hyperledger.besu.ethereum.core.ImmutableMiningConfiguration.Unstable;
@@ -31,6 +30,7 @@ import org.hyperledger.besu.ethereum.core.MiningConfiguration;
 import org.hyperledger.besu.util.number.PositiveNumber;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Optional;
@@ -38,7 +38,6 @@ import java.util.Optional;
 import org.apache.tuweni.bytes.Bytes;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
@@ -274,20 +273,6 @@ public class MiningOptionsTest extends AbstractCLIOptionsTest<MiningConfiguratio
   }
 
   @Test
-  public void targetGasLimitIsDisabledWhenNotSpecified() {
-    internalTestSuccess(
-        miningParams -> {
-          final ArgumentCaptor<GasLimitCalculator> gasLimitCalculatorArgumentCaptor =
-              ArgumentCaptor.forClass(GasLimitCalculator.class);
-
-          verify(mockControllerBuilder)
-              .gasLimitCalculator(gasLimitCalculatorArgumentCaptor.capture());
-          assertThat(gasLimitCalculatorArgumentCaptor.getValue())
-              .isEqualTo(GasLimitCalculator.constant());
-        });
-  }
-
-  @Test
   public void posBlockCreationMaxTimeDefaultValue() {
     internalTestSuccess(
         miningParams ->
@@ -387,6 +372,17 @@ public class MiningOptionsTest extends AbstractCLIOptionsTest<MiningConfiguratio
         "--poa-block-txs-selection-max-time can be only used with PoA networks, see --block-txs-selection-max-time instead",
         "--poa-block-txs-selection-max-time",
         "90");
+  }
+
+  @Test
+  public void extraDataDefaultValueIsBesuVersion() {
+    final var expectedRegex = "besu \\d+\\.\\d+(\\.\\d+|\\-develop\\-\\p{XDigit}+)";
+    internalTestSuccess(
+        this::runtimeConfiguration,
+        miningParams -> {
+          assertThat(new String(miningParams.getExtraData().toArray(), StandardCharsets.UTF_8))
+              .matches(expectedRegex);
+        });
   }
 
   @Override

@@ -15,9 +15,8 @@
 package org.hyperledger.besu.controller;
 
 import org.hyperledger.besu.cli.config.EthNetworkConfig;
-import org.hyperledger.besu.config.GenesisConfigFile;
+import org.hyperledger.besu.config.GenesisConfig;
 import org.hyperledger.besu.config.GenesisConfigOptions;
-import org.hyperledger.besu.config.OpGenesisConfigFile;
 import org.hyperledger.besu.config.PowAlgorithm;
 import org.hyperledger.besu.config.QbftConfigOptions;
 import org.hyperledger.besu.cryptoservices.NodeKey;
@@ -335,24 +334,24 @@ public class BesuController implements java.io.Closeable {
      */
     public BesuControllerBuilder fromEthNetworkConfig(
         final EthNetworkConfig ethNetworkConfig, final SyncMode syncMode) {
-      return fromGenesisFile(ethNetworkConfig.genesisConfigFile(), syncMode)
+      return fromGenesisFile(ethNetworkConfig.genesisConfig(), syncMode)
           .networkId(ethNetworkConfig.networkId());
     }
 
     /**
      * From genesis config besu controller builder.
      *
-     * @param genesisConfigFile the genesis config file
+     * @param genesisConfig the genesis config file
      * @param syncMode the sync mode
      * @return the besu controller builder
      */
     public BesuControllerBuilder fromGenesisFile(
-        final GenesisConfigFile genesisConfigFile, final SyncMode syncMode) {
+        final GenesisConfig genesisConfig, final SyncMode syncMode) {
       final BesuControllerBuilder builder;
-      final var configOptions = genesisConfigFile.getConfigOptions();
+      final var configOptions = genesisConfig.getConfigOptions();
 
       if (configOptions.isConsensusMigration()) {
-        return createConsensusScheduleBesuControllerBuilder(genesisConfigFile);
+        return createConsensusScheduleBesuControllerBuilder(genesisConfig);
       }
 
       if (configOptions.getPowAlgorithm() != PowAlgorithm.UNSUPPORTED) {
@@ -366,9 +365,6 @@ public class BesuController implements java.io.Closeable {
         builder = new QbftBesuControllerBuilder();
       } else if (configOptions.isClique()) {
         builder = new CliqueBesuControllerBuilder();
-      } else if (genesisConfigFile instanceof OpGenesisConfigFile) {
-        // todo Temporary modification, will later use OptimismBesuControllerBuilder
-        builder = new MainnetBesuControllerBuilder();
       } else {
         throw new IllegalArgumentException("Unknown consensus mechanism defined");
       }
@@ -377,29 +373,28 @@ public class BesuController implements java.io.Closeable {
       if (configOptions.getTerminalTotalDifficulty().isPresent()) {
         // Enable start with vanilla MergeBesuControllerBuilder for PoS checkpoint block
         if (syncMode == SyncMode.CHECKPOINT && isCheckpointPoSBlock(configOptions)) {
-          return new MergeBesuControllerBuilder().genesisConfigFile(genesisConfigFile);
+          return new MergeBesuControllerBuilder().genesisConfig(genesisConfig);
         } else {
           // TODO this should be changed to vanilla MergeBesuControllerBuilder and the Transition*
           // series of classes removed after we successfully transition to PoS
           // https://github.com/hyperledger/besu/issues/2897
           return new TransitionBesuControllerBuilder(builder, new MergeBesuControllerBuilder())
-              .genesisConfigFile(genesisConfigFile);
+              .genesisConfig(genesisConfig);
         }
 
-      } else return builder.genesisConfigFile(genesisConfigFile);
+      } else return builder.genesisConfig(genesisConfig);
     }
 
     private BesuControllerBuilder createConsensusScheduleBesuControllerBuilder(
-        final GenesisConfigFile genesisConfigFile) {
+        final GenesisConfig genesisConfig) {
       final Map<Long, BesuControllerBuilder> besuControllerBuilderSchedule = new HashMap<>();
-      final var configOptions = genesisConfigFile.getConfigOptions();
+      final var configOptions = genesisConfig.getConfigOptions();
 
       final BesuControllerBuilder originalControllerBuilder;
       if (configOptions.isIbft2()) {
         originalControllerBuilder = new IbftBesuControllerBuilder();
       } else if (configOptions.isIbftLegacy()) {
-        throw new IllegalStateException(
-            "IBFT1 (legacy) is no longer supported. Consider using IBFT2 or QBFT.");
+        originalControllerBuilder = new IbftLegacyBesuControllerBuilder();
       } else {
         throw new IllegalStateException(
             "Invalid genesis migration config. Migration is supported from IBFT (legacy) or IBFT2 to QBFT)");
@@ -411,7 +406,7 @@ public class BesuController implements java.io.Closeable {
       besuControllerBuilderSchedule.put(qbftBlock, new QbftBesuControllerBuilder());
 
       return new ConsensusScheduleBesuControllerBuilder(besuControllerBuilderSchedule)
-          .genesisConfigFile(genesisConfigFile);
+          .genesisConfig(genesisConfig);
     }
 
     private Long readQbftStartBlockConfig(final QbftConfigOptions qbftConfigOptions) {

@@ -12,13 +12,13 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-package org.hyperledger.besu.ethereum.trie.diffbased.common.worldview;
+package org.hyperledger.besu.ethereum.trie.pathbased.common.worldview;
 
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.datatypes.StorageSlotKey;
 import org.hyperledger.besu.ethereum.rlp.BytesValueRLPOutput;
-import org.hyperledger.besu.ethereum.trie.diffbased.common.storage.DiffBasedWorldStateKeyValueStorage;
+import org.hyperledger.besu.ethereum.trie.pathbased.common.storage.PathBasedWorldStateKeyValueStorage;
 import org.hyperledger.besu.evm.worldstate.WorldUpdater;
 import org.hyperledger.besu.evm.worldstate.WorldView;
 
@@ -29,7 +29,7 @@ import org.apache.tuweni.bytes.Bytes;
 import org.apache.tuweni.bytes.Bytes32;
 import org.apache.tuweni.units.bigints.UInt256;
 
-public interface DiffBasedWorldView extends WorldView {
+public interface PathBasedWorldView extends WorldView {
 
   Optional<Bytes> getCode(Address address, final Hash codeHash);
 
@@ -55,9 +55,9 @@ public interface DiffBasedWorldView extends WorldView {
     return out.encoded();
   }
 
-  boolean isPersisted();
+  boolean isModifyingHeadWorldState();
 
-  DiffBasedWorldStateKeyValueStorage getWorldStateStorage();
+  PathBasedWorldStateKeyValueStorage getWorldStateStorage();
 
   WorldUpdater updater();
 }

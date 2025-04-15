@@ -1,5 +1,5 @@
 /*
- * Copyright ConsenSys AG.
+ * Copyright contributors to Besu.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -12,13 +12,10 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-package org.hyperledger.besu.ethereum.p2p.discovery.internal;
-
-import static com.google.common.base.Preconditions.checkArgument;
+package org.hyperledger.besu.ethereum.p2p.discovery.internal.packet.neighbors;
 
 import org.hyperledger.besu.ethereum.p2p.discovery.DiscoveryPeer;
-import org.hyperledger.besu.ethereum.rlp.RLPInput;
-import org.hyperledger.besu.ethereum.rlp.RLPOutput;
+import org.hyperledger.besu.ethereum.p2p.discovery.internal.packet.PacketData;
 
 import java.util.List;
 
@@ -29,32 +26,9 @@ public class NeighborsPacketData implements PacketData {
   /* In seconds after epoch. */
   private final long expiration;
 
-  private NeighborsPacketData(final List<DiscoveryPeer> peers, final long expiration) {
-    checkArgument(peers != null, "peer list cannot be null");
-    checkArgument(expiration >= 0, "expiration must be positive");
-
+  NeighborsPacketData(final List<DiscoveryPeer> peers, final long expiration) {
     this.peers = peers;
     this.expiration = expiration;
-  }
-
-  public static NeighborsPacketData create(final List<DiscoveryPeer> peers) {
-    return new NeighborsPacketData(peers, PacketData.defaultExpiration());
-  }
-
-  public static NeighborsPacketData readFrom(final RLPInput in) {
-    in.enterList();
-    final List<DiscoveryPeer> peers = in.readList(DiscoveryPeer::readFrom);
-    final long expiration = in.readLongScalar();
-    in.leaveListLenient();
-    return new NeighborsPacketData(peers, expiration);
-  }
-
-  @Override
-  public void writeTo(final RLPOutput out) {
-    out.startList();
-    out.writeList(peers, DiscoveryPeer::writeTo);
-    out.writeLongScalar(expiration);
-    out.endList();
   }
 
   public List<DiscoveryPeer> getNodes() {

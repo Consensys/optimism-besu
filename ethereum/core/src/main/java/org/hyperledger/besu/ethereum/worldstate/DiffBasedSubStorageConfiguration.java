@@ -18,15 +18,15 @@ import org.immutables.value.Value;
 
 @Value.Immutable
 @Value.Enclosing
-public interface DiffBasedSubStorageConfiguration {
+public interface PathBasedExtraStorageConfiguration {
 
-  DiffBasedSubStorageConfiguration DEFAULT =
-      ImmutableDiffBasedSubStorageConfiguration.builder().build();
+  PathBasedExtraStorageConfiguration DEFAULT =
+      ImmutablePathBasedExtraStorageConfiguration.builder().build();
 
-  DiffBasedSubStorageConfiguration DISABLED =
-      ImmutableDiffBasedSubStorageConfiguration.builder()
+  PathBasedExtraStorageConfiguration DISABLED =
+      ImmutablePathBasedExtraStorageConfiguration.builder()
           .limitTrieLogsEnabled(false)
-          .unstable(DiffBasedUnstable.DISABLED)
+          .unstable(PathBasedUnstable.DISABLED)
           .build();
 
   long DEFAULT_MAX_LAYERS_TO_LOAD = 512;
@@ -50,23 +50,23 @@ public interface DiffBasedSubStorageConfiguration {
   }
 
   @Value.Default
-  default DiffBasedUnstable getUnstable() {
-    return DiffBasedUnstable.DEFAULT;
+  default PathBasedUnstable getUnstable() {
+    return PathBasedUnstable.DEFAULT;
   }
 
   @Value.Immutable
-  interface DiffBasedUnstable {
+  interface PathBasedUnstable {
 
-    DiffBasedSubStorageConfiguration.DiffBasedUnstable DEFAULT =
-        ImmutableDiffBasedSubStorageConfiguration.DiffBasedUnstable.builder().build();
+    PathBasedExtraStorageConfiguration.PathBasedUnstable DEFAULT =
+        ImmutablePathBasedExtraStorageConfiguration.PathBasedUnstable.builder().build();
 
-    DiffBasedSubStorageConfiguration.DiffBasedUnstable PARTIAL_MODE =
-        ImmutableDiffBasedSubStorageConfiguration.DiffBasedUnstable.builder()
+    PathBasedExtraStorageConfiguration.PathBasedUnstable PARTIAL_MODE =
+        ImmutablePathBasedExtraStorageConfiguration.PathBasedUnstable.builder()
             .fullFlatDbEnabled(false)
             .build();
 
-    DiffBasedSubStorageConfiguration.DiffBasedUnstable DISABLED =
-        ImmutableDiffBasedSubStorageConfiguration.DiffBasedUnstable.builder()
+    PathBasedExtraStorageConfiguration.PathBasedUnstable DISABLED =
+        ImmutablePathBasedExtraStorageConfiguration.PathBasedUnstable.builder()
             .fullFlatDbEnabled(false)
             .codeStoredByCodeHashEnabled(false)
             .isParallelTxProcessingEnabled(false)

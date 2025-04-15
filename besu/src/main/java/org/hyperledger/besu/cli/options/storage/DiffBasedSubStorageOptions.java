@@ -14,17 +14,17 @@
  */
 package org.hyperledger.besu.cli.options.storage;
 
-import static org.hyperledger.besu.ethereum.worldstate.DiffBasedSubStorageConfiguration.DEFAULT_LIMIT_TRIE_LOGS_ENABLED;
-import static org.hyperledger.besu.ethereum.worldstate.DiffBasedSubStorageConfiguration.DEFAULT_MAX_LAYERS_TO_LOAD;
-import static org.hyperledger.besu.ethereum.worldstate.DiffBasedSubStorageConfiguration.DEFAULT_TRIE_LOG_PRUNING_WINDOW_SIZE;
-import static org.hyperledger.besu.ethereum.worldstate.DiffBasedSubStorageConfiguration.DiffBasedUnstable.DEFAULT_CODE_USING_CODE_HASH_ENABLED;
-import static org.hyperledger.besu.ethereum.worldstate.DiffBasedSubStorageConfiguration.DiffBasedUnstable.DEFAULT_FULL_FLAT_DB_ENABLED;
-import static org.hyperledger.besu.ethereum.worldstate.DiffBasedSubStorageConfiguration.MINIMUM_TRIE_LOG_RETENTION_LIMIT;
+import static org.hyperledger.besu.ethereum.worldstate.PathBasedExtraStorageConfiguration.DEFAULT_LIMIT_TRIE_LOGS_ENABLED;
+import static org.hyperledger.besu.ethereum.worldstate.PathBasedExtraStorageConfiguration.DEFAULT_MAX_LAYERS_TO_LOAD;
+import static org.hyperledger.besu.ethereum.worldstate.PathBasedExtraStorageConfiguration.DEFAULT_TRIE_LOG_PRUNING_WINDOW_SIZE;
+import static org.hyperledger.besu.ethereum.worldstate.PathBasedExtraStorageConfiguration.MINIMUM_TRIE_LOG_RETENTION_LIMIT;
+import static org.hyperledger.besu.ethereum.worldstate.PathBasedExtraStorageConfiguration.PathBasedUnstable.DEFAULT_CODE_USING_CODE_HASH_ENABLED;
+import static org.hyperledger.besu.ethereum.worldstate.PathBasedExtraStorageConfiguration.PathBasedUnstable.DEFAULT_FULL_FLAT_DB_ENABLED;
 
 import org.hyperledger.besu.cli.options.CLIOptions;
 import org.hyperledger.besu.cli.util.CommandLineUtils;
-import org.hyperledger.besu.ethereum.worldstate.DiffBasedSubStorageConfiguration;
-import org.hyperledger.besu.ethereum.worldstate.ImmutableDiffBasedSubStorageConfiguration;
+import org.hyperledger.besu.ethereum.worldstate.ImmutablePathBasedExtraStorageConfiguration;
+import org.hyperledger.besu.ethereum.worldstate.PathBasedExtraStorageConfiguration;
 import org.hyperledger.besu.plugin.services.storage.DataStorageFormat;
 
 import java.util.List;
@@ -33,7 +33,8 @@ import picocli.CommandLine;
 import picocli.CommandLine.Option;
 
 /** The Data storage CLI options. */
-public class DiffBasedSubStorageOptions implements CLIOptions<DiffBasedSubStorageConfiguration> {
+public class PathBasedExtraStorageOptions
+    implements CLIOptions<PathBasedExtraStorageConfiguration> {
 
   /** The maximum number of historical layers to load. */
   public static final String MAX_LAYERS_TO_LOAD = "--bonsai-historical-block-limit";
@@ -80,10 +81,10 @@ public class DiffBasedSubStorageOptions implements CLIOptions<DiffBasedSubStorag
   private Integer trieLogPruningWindowSize = DEFAULT_TRIE_LOG_PRUNING_WINDOW_SIZE;
 
   @CommandLine.ArgGroup(validate = false)
-  private final DiffBasedSubStorageOptions.Unstable unstableOptions = new Unstable();
+  private final PathBasedExtraStorageOptions.Unstable unstableOptions = new Unstable();
 
   /** Default Constructor. */
-  DiffBasedSubStorageOptions() {}
+  PathBasedExtraStorageOptions() {}
 
   /** The unstable options for data storage. */
   public static class Unstable {
@@ -125,8 +126,8 @@ public class DiffBasedSubStorageOptions implements CLIOptions<DiffBasedSubStorag
    *
    * @return the data storage options
    */
-  public static DiffBasedSubStorageOptions create() {
-    return new DiffBasedSubStorageOptions();
+  public static PathBasedExtraStorageOptions create() {
+    return new PathBasedExtraStorageOptions();
   }
 
   /**
@@ -168,7 +169,7 @@ public class DiffBasedSubStorageOptions implements CLIOptions<DiffBasedSubStorag
       if (unstableOptions.isParallelTxProcessingEnabled) {
         throw new CommandLine.ParameterException(
             commandLine,
-            "Transaction parallelization is not supported unless operating in a 'diffbased' mode, such as Bonsai.");
+            "Transaction parallelization is not supported unless operating in a 'pathbased' mode, such as Bonsai.");
       }
     }
   }
@@ -179,9 +180,9 @@ public class DiffBasedSubStorageOptions implements CLIOptions<DiffBasedSubStorag
    * @param domainObject to be reversed
    * @return the options that correspond to the configuration
    */
-  public static DiffBasedSubStorageOptions fromConfig(
-      final DiffBasedSubStorageConfiguration domainObject) {
-    final DiffBasedSubStorageOptions dataStorageOptions = DiffBasedSubStorageOptions.create();
+  public static PathBasedExtraStorageOptions fromConfig(
+      final PathBasedExtraStorageConfiguration domainObject) {
+    final PathBasedExtraStorageOptions dataStorageOptions = PathBasedExtraStorageOptions.create();
     dataStorageOptions.maxLayersToLoad = domainObject.getMaxLayersToLoad();
     dataStorageOptions.limitTrieLogsEnabled = domainObject.getLimitTrieLogsEnabled();
     dataStorageOptions.trieLogPruningWindowSize = domainObject.getTrieLogPruningWindowSize();
@@ -196,13 +197,13 @@ public class DiffBasedSubStorageOptions implements CLIOptions<DiffBasedSubStorag
   }
 
   @Override
-  public final DiffBasedSubStorageConfiguration toDomainObject() {
-    return ImmutableDiffBasedSubStorageConfiguration.builder()
+  public final PathBasedExtraStorageConfiguration toDomainObject() {
+    return ImmutablePathBasedExtraStorageConfiguration.builder()
         .maxLayersToLoad(maxLayersToLoad)
         .limitTrieLogsEnabled(limitTrieLogsEnabled)
         .trieLogPruningWindowSize(trieLogPruningWindowSize)
         .unstable(
-            ImmutableDiffBasedSubStorageConfiguration.DiffBasedUnstable.builder()
+            ImmutablePathBasedExtraStorageConfiguration.PathBasedUnstable.builder()
                 .fullFlatDbEnabled(unstableOptions.fullFlatDbEnabled)
                 .codeStoredByCodeHashEnabled(unstableOptions.codeUsingCodeHashEnabled)
                 .isParallelTxProcessingEnabled(unstableOptions.isParallelTxProcessingEnabled)
@@ -212,6 +213,6 @@ public class DiffBasedSubStorageOptions implements CLIOptions<DiffBasedSubStorag
 
   @Override
   public List<String> getCLIOptions() {
-    return CommandLineUtils.getCLIOptions(this, new DiffBasedSubStorageOptions());
+    return CommandLineUtils.getCLIOptions(this, new PathBasedExtraStorageOptions());
   }
 }

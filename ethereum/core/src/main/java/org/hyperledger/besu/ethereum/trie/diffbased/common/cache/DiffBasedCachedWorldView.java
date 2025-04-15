@@ -12,30 +12,30 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-package org.hyperledger.besu.ethereum.trie.diffbased.common.cache;
+package org.hyperledger.besu.ethereum.trie.pathbased.common.cache;
 
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.ethereum.core.BlockHeader;
-import org.hyperledger.besu.ethereum.trie.diffbased.common.StorageSubscriber;
-import org.hyperledger.besu.ethereum.trie.diffbased.common.storage.DiffBasedWorldStateKeyValueStorage;
+import org.hyperledger.besu.ethereum.trie.pathbased.common.StorageSubscriber;
+import org.hyperledger.besu.ethereum.trie.pathbased.common.storage.PathBasedWorldStateKeyValueStorage;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class DiffBasedCachedWorldView implements StorageSubscriber {
-  private DiffBasedWorldStateKeyValueStorage worldStateKeyValueStorage;
+public class PathBasedCachedWorldView implements StorageSubscriber {
+  private PathBasedWorldStateKeyValueStorage worldStateKeyValueStorage;
   private final BlockHeader blockHeader;
   private long worldViewSubscriberId;
-  private static final Logger LOG = LoggerFactory.getLogger(DiffBasedCachedWorldView.class);
+  private static final Logger LOG = LoggerFactory.getLogger(PathBasedCachedWorldView.class);
 
-  public DiffBasedCachedWorldView(
-      final BlockHeader blockHeader, final DiffBasedWorldStateKeyValueStorage worldView) {
+  public PathBasedCachedWorldView(
+      final BlockHeader blockHeader, final PathBasedWorldStateKeyValueStorage worldView) {
     this.blockHeader = blockHeader;
     this.worldStateKeyValueStorage = worldView;
     this.worldViewSubscriberId = worldStateKeyValueStorage.subscribe(this);
   }
 
-  public DiffBasedWorldStateKeyValueStorage getWorldStateStorage() {
+  public PathBasedWorldStateKeyValueStorage getWorldStateStorage() {
     return worldStateKeyValueStorage;
   }
 
@@ -57,10 +57,10 @@ public class DiffBasedCachedWorldView implements StorageSubscriber {
   }
 
   public synchronized void updateWorldStateStorage(
-      final DiffBasedWorldStateKeyValueStorage newWorldStateStorage) {
+      final PathBasedWorldStateKeyValueStorage newWorldStateStorage) {
     long newSubscriberId = newWorldStateStorage.subscribe(this);
     this.worldStateKeyValueStorage.unSubscribe(this.worldViewSubscriberId);
-    final DiffBasedWorldStateKeyValueStorage oldWorldStateStorage = this.worldStateKeyValueStorage;
+    final PathBasedWorldStateKeyValueStorage oldWorldStateStorage = this.worldStateKeyValueStorage;
     this.worldStateKeyValueStorage = newWorldStateStorage;
     this.worldViewSubscriberId = newSubscriberId;
     try {

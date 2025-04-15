@@ -12,26 +12,26 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-package org.hyperledger.besu.consensus.qbft.test;
+package org.hyperledger.besu.consensus.qbft.core.test;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.hyperledger.besu.consensus.qbft.support.IntegrationTestHelpers.createSignedCommitPayload;
+import static org.hyperledger.besu.consensus.qbft.core.support.IntegrationTestHelpers.createSignedCommitPayload;
 
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
 import org.hyperledger.besu.consensus.common.bft.inttest.NodeParams;
-import org.hyperledger.besu.consensus.qbft.messagedata.QbftV1;
-import org.hyperledger.besu.consensus.qbft.messagewrappers.Commit;
-import org.hyperledger.besu.consensus.qbft.messagewrappers.Prepare;
-import org.hyperledger.besu.consensus.qbft.payload.MessageFactory;
-import org.hyperledger.besu.consensus.qbft.support.RoundSpecificPeers;
-import org.hyperledger.besu.consensus.qbft.support.TestContext;
-import org.hyperledger.besu.consensus.qbft.support.TestContextBuilder;
-import org.hyperledger.besu.consensus.qbft.support.ValidatorPeer;
+import org.hyperledger.besu.consensus.qbft.core.messagedata.QbftV1;
+import org.hyperledger.besu.consensus.qbft.core.messagewrappers.Commit;
+import org.hyperledger.besu.consensus.qbft.core.messagewrappers.Prepare;
+import org.hyperledger.besu.consensus.qbft.core.payload.MessageFactory;
+import org.hyperledger.besu.consensus.qbft.core.support.RoundSpecificPeers;
+import org.hyperledger.besu.consensus.qbft.core.support.TestContext;
+import org.hyperledger.besu.consensus.qbft.core.support.TestContextBuilder;
+import org.hyperledger.besu.consensus.qbft.core.support.ValidatorPeer;
+import org.hyperledger.besu.consensus.qbft.core.types.QbftBlock;
 import org.hyperledger.besu.crypto.SECPSignature;
 import org.hyperledger.besu.cryptoservices.NodeKey;
 import org.hyperledger.besu.cryptoservices.NodeKeyUtils;
 import org.hyperledger.besu.datatypes.Hash;
-import org.hyperledger.besu.ethereum.core.Block;
 import org.hyperledger.besu.ethereum.core.Util;
 import org.hyperledger.besu.ethereum.p2p.rlpx.wire.MessageData;
 import org.hyperledger.besu.ethereum.p2p.rlpx.wire.RawMessage;
@@ -63,7 +63,7 @@ public class SpuriousBehaviourTest {
   private final ConsensusRoundIdentifier roundId = new ConsensusRoundIdentifier(1, 0);
   private final RoundSpecificPeers peers = context.roundSpecificPeers(roundId);
 
-  private final Block proposedBlock =
+  private final QbftBlock proposedBlock =
       context.createBlockForProposalFromChainHead(30, peers.getProposer().getNodeAddress());
   private Prepare expectedPrepare;
   private Commit expectedCommit;
@@ -76,7 +76,10 @@ public class SpuriousBehaviourTest {
     expectedCommit =
         new Commit(
             createSignedCommitPayload(
-                roundId, proposedBlock, context.getLocalNodeParams().getNodeKey()));
+                roundId,
+                proposedBlock,
+                context.getLocalNodeParams().getNodeKey(),
+                context.getBlockEncoder()));
   }
 
   @Test
@@ -107,7 +110,7 @@ public class SpuriousBehaviourTest {
     final ValidatorPeer nonvalidator =
         new ValidatorPeer(
             nonValidatorParams,
-            new MessageFactory(nonValidatorParams.getNodeKey()),
+            new MessageFactory(nonValidatorParams.getNodeKey(), context.getBlockEncoder()),
             context.getEventMultiplexer());
 
     nonvalidator.injectProposal(new ConsensusRoundIdentifier(1, 0), proposedBlock);

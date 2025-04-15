@@ -12,34 +12,29 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-package org.hyperledger.besu.consensus.qbft.validation;
+package org.hyperledger.besu.consensus.qbft.core.validation;
 
 import static org.hyperledger.besu.consensus.common.bft.validation.ValidationHelpers.hasDuplicateAuthors;
 import static org.hyperledger.besu.consensus.common.bft.validation.ValidationHelpers.hasSufficientEntries;
 
-import org.hyperledger.besu.consensus.common.bft.BftBlockHeaderFunctions;
-import org.hyperledger.besu.consensus.common.bft.BftBlockInterface;
-import org.hyperledger.besu.consensus.common.bft.BftContext;
-import org.hyperledger.besu.consensus.common.bft.BftExtraDataCodec;
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
 import org.hyperledger.besu.consensus.common.bft.payload.Payload;
 import org.hyperledger.besu.consensus.common.bft.payload.SignedData;
-import org.hyperledger.besu.consensus.qbft.messagewrappers.Proposal;
-import org.hyperledger.besu.consensus.qbft.payload.PreparePayload;
-import org.hyperledger.besu.consensus.qbft.payload.PreparedRoundMetadata;
-import org.hyperledger.besu.consensus.qbft.payload.RoundChangePayload;
+import org.hyperledger.besu.consensus.qbft.core.messagewrappers.Proposal;
+import org.hyperledger.besu.consensus.qbft.core.payload.PreparePayload;
+import org.hyperledger.besu.consensus.qbft.core.payload.PreparedRoundMetadata;
+import org.hyperledger.besu.consensus.qbft.core.payload.RoundChangePayload;
+import org.hyperledger.besu.consensus.qbft.core.types.QbftBlock;
+import org.hyperledger.besu.consensus.qbft.core.types.QbftBlockInterface;
+import org.hyperledger.besu.consensus.qbft.core.types.QbftBlockValidator;
+import org.hyperledger.besu.consensus.qbft.core.types.QbftProtocolSchedule;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.Hash;
-import org.hyperledger.besu.ethereum.BlockValidator;
-import org.hyperledger.besu.ethereum.ProtocolContext;
-import org.hyperledger.besu.ethereum.core.Block;
-import org.hyperledger.besu.ethereum.mainnet.ProtocolSchedule;
 
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,40 +45,36 @@ public class ProposalValidator {
   private static final Logger LOG = LoggerFactory.getLogger(ProposalValidator.class);
   private static final String ERROR_PREFIX = "Invalid Proposal Payload";
 
-  private final ProtocolContext protocolContext;
-  private final ProtocolSchedule protocolSchedule;
+  private final QbftBlockInterface blockInterface;
+  private final QbftProtocolSchedule protocolSchedule;
   private final int quorumMessageCount;
   private final Collection<Address> validators;
   private final ConsensusRoundIdentifier roundIdentifier;
   private final Address expectedProposer;
-  private final BftExtraDataCodec bftExtraDataCodec;
 
   /**
    * Instantiates a new Proposal validator.
    *
-   * @param protocolContext the protocol context
+   * @param blockInterface the block interface
    * @param protocolSchedule the protocol schedule
    * @param quorumMessageCount the quorum message count
    * @param validators the validators
    * @param roundIdentifier the round identifier
    * @param expectedProposer the expected proposer
-   * @param bftExtraDataCodec the bft extra data codec
    */
   public ProposalValidator(
-      final ProtocolContext protocolContext,
-      final ProtocolSchedule protocolSchedule,
+      final QbftBlockInterface blockInterface,
+      final QbftProtocolSchedule protocolSchedule,
       final int quorumMessageCount,
       final Collection<Address> validators,
       final ConsensusRoundIdentifier roundIdentifier,
-      final Address expectedProposer,
-      final BftExtraDataCodec bftExtraDataCodec) {
-    this.protocolContext = protocolContext;
+      final Address expectedProposer) {
+    this.blockInterface = blockInterface;
     this.protocolSchedule = protocolSchedule;
     this.quorumMessageCount = quorumMessageCount;
     this.validators = validators;
     this.roundIdentifier = roundIdentifier;
     this.expectedProposer = expectedProposer;
-    this.bftExtraDataCodec = bftExtraDataCodec;
   }
 
   /**
@@ -93,12 +84,11 @@ public class ProposalValidator {
    * @return the boolean
    */
   public boolean validate(final Proposal msg) {
-    final BlockValidator blockValidator =
-        protocolSchedule.getByBlockHeader(msg.getBlock().getHeader()).getBlockValidator();
+    final QbftBlockValidator blockValidator =
+        protocolSchedule.getBlockValidator(msg.getBlock().getHeader());
 
     final ProposalPayloadValidator payloadValidator =
-        new ProposalPayloadValidator(
-            expectedProposer, roundIdentifier, blockValidator, protocolContext);
+        new ProposalPayloadValidator(expectedProposer, roundIdentifier, blockValidator);
 
     if (!payloadValidator.validate(msg.getSignedPayload())) {
       LOG.info("{}: invalid proposal payload in proposal message", ERROR_PREFIX);
@@ -150,13 +140,8 @@ public class ProposalValidator {
         // to create a block with the old round in it, then re-calc expected hash
         // Need to check that if we substitute the LatestPrepareCert round number into the supplied
         // block that we get the SAME hash as PreparedCert.
-        final BftBlockInterface bftBlockInterface =
-            protocolContext.getConsensusContext(BftContext.class).getBlockInterface();
-        final Block currentBlockWithOldRound =
-            bftBlockInterface.replaceRoundInBlock(
-                proposal.getBlock(),
-                metadata.getPreparedRound(),
-                BftBlockHeaderFunctions.forCommittedSeal(bftExtraDataCodec));
+        final QbftBlock currentBlockWithOldRound =
+            blockInterface.replaceRoundInBlock(proposal.getBlock(), metadata.getPreparedRound());
 
         final Hash expectedPriorBlockHash = currentBlockWithOldRound.getHash();
 
@@ -190,7 +175,7 @@ public class ProposalValidator {
   }
 
   private boolean validateRoundZeroProposalHasNoRoundChangesOrPrepares(final Proposal proposal) {
-    if ((proposal.getRoundChanges().size() != 0) || proposal.getPrepares().size() != 0) {
+    if ((!proposal.getRoundChanges().isEmpty()) || !proposal.getPrepares().isEmpty()) {
       LOG.info("{}: round-0 proposal must not contain any prepares or roundchanges", ERROR_PREFIX);
       return false;
     }
@@ -292,12 +277,10 @@ public class ProposalValidator {
             .filter(Optional::isPresent)
             .map(Optional::get)
             .distinct()
-            .collect(Collectors.toList());
+            .toList();
 
     final List<Integer> preparedRounds =
-        distinctMetadatas.stream()
-            .map(PreparedRoundMetadata::getPreparedRound)
-            .collect(Collectors.toList());
+        distinctMetadatas.stream().map(PreparedRoundMetadata::getPreparedRound).toList();
 
     for (final Integer preparedRound : preparedRounds) {
       if (distinctMetadatas.stream().filter(dm -> dm.getPreparedRound() == preparedRound).count()

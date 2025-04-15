@@ -40,7 +40,7 @@ import org.hyperledger.besu.ethereum.eth.manager.EthProtocolManagerTestBuilder;
 import org.hyperledger.besu.ethereum.eth.manager.EthProtocolManagerTestUtil;
 import org.hyperledger.besu.ethereum.eth.manager.EthScheduler;
 import org.hyperledger.besu.ethereum.eth.manager.RespondingEthPeer;
-import org.hyperledger.besu.ethereum.eth.messages.EthPV63;
+import org.hyperledger.besu.ethereum.eth.messages.EthProtocolMessages;
 import org.hyperledger.besu.ethereum.eth.messages.GetNodeDataMessage;
 import org.hyperledger.besu.ethereum.eth.sync.SynchronizerConfiguration;
 import org.hyperledger.besu.ethereum.eth.sync.fastsync.FastSyncState;
@@ -201,7 +201,7 @@ class FastWorldStateDownloaderTest {
   void downloadAlreadyAvailableWorldState() {
     // Setup existing state
     final ForestWorldStateArchive worldStateArchive = createInMemoryWorldStateArchive();
-    final MutableWorldState worldState = worldStateArchive.getMutable();
+    final MutableWorldState worldState = worldStateArchive.getWorldState();
 
     // Generate accounts and save corresponding state root
     dataGen.createRandomAccounts(worldState, 20);
@@ -252,7 +252,7 @@ class FastWorldStateDownloaderTest {
 
     // Setup "remote" state
     final WorldStateArchive remoteWorldStateArchive = createInMemoryWorldStateArchive();
-    final MutableWorldState remoteWorldState = remoteWorldStateArchive.getMutable();
+    final MutableWorldState remoteWorldState = remoteWorldStateArchive.getWorldState();
 
     // Generate accounts and save corresponding state root
     final List<Account> accounts = dataGen.createRandomAccounts(remoteWorldState, 20);
@@ -309,7 +309,7 @@ class FastWorldStateDownloaderTest {
   void doesNotRequestKnownCodeFromNetwork() {
     // Setup "remote" state
     final WorldStateArchive remoteWorldStateArchive = createInMemoryWorldStateArchive();
-    final MutableWorldState remoteWorldState = remoteWorldStateArchive.getMutable();
+    final MutableWorldState remoteWorldState = remoteWorldStateArchive.getWorldState();
 
     // Generate accounts and save corresponding state root
     final List<Account> accounts =
@@ -356,7 +356,7 @@ class FastWorldStateDownloaderTest {
     // Check that known code was not requested
     final List<Bytes32> requestedHashes =
         sentMessages.stream()
-            .filter(m -> m.getCode() == EthPV63.GET_NODE_DATA)
+            .filter(m -> m.getCode() == EthProtocolMessages.GET_NODE_DATA)
             .map(GetNodeDataMessage::readFrom)
             .flatMap(m -> StreamSupport.stream(m.hashes().spliterator(), true))
             .collect(Collectors.toList());
@@ -397,7 +397,7 @@ class FastWorldStateDownloaderTest {
 
     // Setup "remote" state
     final WorldStateArchive remoteWorldStateArchive = createInMemoryWorldStateArchive();
-    final MutableWorldState remoteWorldState = remoteWorldStateArchive.getMutable();
+    final MutableWorldState remoteWorldState = remoteWorldStateArchive.getWorldState();
 
     // Generate accounts and save corresponding state root
     dataGen.createRandomContractAccountsWithNonEmptyStorage(remoteWorldState, 20);
@@ -474,7 +474,7 @@ class FastWorldStateDownloaderTest {
             new WorldStateStorageCoordinator(remoteStorage),
             createPreimageStorage(),
             EvmConfiguration.DEFAULT);
-    final MutableWorldState remoteWorldState = remoteWorldStateArchive.getMutable();
+    final MutableWorldState remoteWorldState = remoteWorldStateArchive.getWorldState();
 
     // Generate accounts and save corresponding state root
     final List<Account> accounts =
@@ -534,7 +534,7 @@ class FastWorldStateDownloaderTest {
     // Check that unknown trie nodes were requested
     final List<Bytes32> requestedHashes =
         sentMessages.stream()
-            .filter(m -> m.getCode() == EthPV63.GET_NODE_DATA)
+            .filter(m -> m.getCode() == EthProtocolMessages.GET_NODE_DATA)
             .map(GetNodeDataMessage::readFrom)
             .flatMap(m -> StreamSupport.stream(m.hashes().spliterator(), true))
             .collect(Collectors.toList());
@@ -565,7 +565,7 @@ class FastWorldStateDownloaderTest {
             new WorldStateStorageCoordinator(remoteStorage),
             createPreimageStorage(),
             EvmConfiguration.DEFAULT);
-    final MutableWorldState remoteWorldState = remoteWorldStateArchive.getMutable();
+    final MutableWorldState remoteWorldState = remoteWorldStateArchive.getWorldState();
 
     // Generate accounts and save corresponding state root
     final List<Account> accounts =
@@ -643,7 +643,7 @@ class FastWorldStateDownloaderTest {
     // Check that unknown trie nodes were requested
     final List<Bytes32> requestedHashes =
         sentMessages.stream()
-            .filter(m -> m.getCode() == EthPV63.GET_NODE_DATA)
+            .filter(m -> m.getCode() == EthProtocolMessages.GET_NODE_DATA)
             .map(GetNodeDataMessage::readFrom)
             .flatMap(m -> StreamSupport.stream(m.hashes().spliterator(), true))
             .collect(Collectors.toList());
@@ -679,7 +679,7 @@ class FastWorldStateDownloaderTest {
             new WorldStateStorageCoordinator(remoteStorage),
             createPreimageStorage(),
             EvmConfiguration.DEFAULT);
-    final MutableWorldState remoteWorldState = remoteWorldStateArchive.getMutable();
+    final MutableWorldState remoteWorldState = remoteWorldStateArchive.getWorldState();
 
     // Generate accounts and save corresponding state root
     dataGen.createRandomAccounts(remoteWorldState, 10);
@@ -743,7 +743,7 @@ class FastWorldStateDownloaderTest {
             new WorldStateStorageCoordinator(remoteStorage),
             createPreimageStorage(),
             EvmConfiguration.DEFAULT);
-    final MutableWorldState remoteWorldState = remoteWorldStateArchive.getMutable();
+    final MutableWorldState remoteWorldState = remoteWorldStateArchive.getWorldState();
 
     // Generate accounts and save corresponding state root
     List<Account> accounts = dataGen.createRandomAccounts(remoteWorldState, 10);
@@ -791,7 +791,7 @@ class FastWorldStateDownloaderTest {
     // Check that already enqueued trie nodes were requested
     final List<Bytes32> requestedHashes =
         sentMessages.stream()
-            .filter(m -> m.getCode() == EthPV63.GET_NODE_DATA)
+            .filter(m -> m.getCode() == EthProtocolMessages.GET_NODE_DATA)
             .map(GetNodeDataMessage::readFrom)
             .flatMap(m -> StreamSupport.stream(m.hashes().spliterator(), true))
             .collect(Collectors.toList());
@@ -886,7 +886,7 @@ class FastWorldStateDownloaderTest {
             new WorldStateStorageCoordinator(remoteStorage),
             createPreimageStorage(),
             EvmConfiguration.DEFAULT);
-    final MutableWorldState remoteWorldState = remoteWorldStateArchive.getMutable();
+    final MutableWorldState remoteWorldState = remoteWorldStateArchive.getWorldState();
 
     // Generate accounts and save corresponding state root
     final List<Account> accounts = dataGen.createRandomAccounts(remoteWorldState, accountCount);

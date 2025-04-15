@@ -14,7 +14,10 @@
  */
 package org.hyperledger.besu.evm.worldstate;
 
+import static org.hyperledger.besu.evm.worldstate.CodeDelegationHelper.hasCodeDelegation;
+
 import org.hyperledger.besu.datatypes.Address;
+import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.evm.account.Account;
 import org.hyperledger.besu.evm.frame.MessageFrame;
 import org.hyperledger.besu.evm.gascalculator.GasCalculator;
@@ -26,28 +29,12 @@ import org.hyperledger.besu.evm.gascalculator.GasCalculator;
  * be executed when a contract has delegated code. This process is necessary to determine the
  * contract that will be executed and to ensure that the contract is warm in the cache.
  */
-public class DelegatedCodeGasCostHelper {
+public class CodeDelegationGasCostHelper {
 
   /** Private constructor to prevent instantiation. */
-  private DelegatedCodeGasCostHelper() {
+  private CodeDelegationGasCostHelper() {
     // empty constructor
   }
-
-  /** The status of the operation. */
-  public enum Status {
-    /** The operation failed due to insufficient gas. */
-    INSUFFICIENT_GAS,
-    /** The operation was successful. */
-    SUCCESS
-  }
-
-  /**
-   * The result of the operation.
-   *
-   * @param gasCost the gas cost
-   * @param status of the operation
-   */
-  public record Result(long gasCost, Status status) {}
 
   /**
    * Deducts the gas cost for delegated code resolution.
@@ -57,33 +44,33 @@ public class DelegatedCodeGasCostHelper {
    * @param account the account
    * @return the gas cost and result of the operation
    */
-  public static Result deductDelegatedCodeGasCost(
+  public static long codeDelegationGasCost(
       final MessageFrame frame, final GasCalculator gasCalculator, final Account account) {
-    if (!account.hasDelegatedCode()) {
-      return new Result(0, Status.SUCCESS);
+    if (account == null) {
+      return 0;
     }
 
-    if (account.delegatedCodeAddress().isEmpty()) {
-      throw new RuntimeException("A delegated code account must have a delegated code address");
+    final Hash codeHash = account.getCodeHash();
+    if (codeHash == null || codeHash.equals(Hash.EMPTY)) {
+      return 0;
     }
 
-    final long delegatedCodeResolutionGas =
-        calculateDelegatedCodeResolutionGas(
-            frame, gasCalculator, account.delegatedCodeAddress().get());
-
-    if (frame.getRemainingGas() < delegatedCodeResolutionGas) {
-      return new Result(delegatedCodeResolutionGas, Status.INSUFFICIENT_GAS);
+    if (!hasCodeDelegation(account.getCode())) {
+      return 0;
     }
 
-    frame.decrementRemainingGas(delegatedCodeResolutionGas);
-    return new Result(delegatedCodeResolutionGas, Status.SUCCESS);
+    return calculateCodeDelegationResolutionGas(
+        frame,
+        gasCalculator,
+        CodeDelegationHelper.getTargetAccount(frame.getWorldUpdater(), gasCalculator, account)
+            .getTargetAddress());
   }
 
-  private static long calculateDelegatedCodeResolutionGas(
-      final MessageFrame frame, final GasCalculator gasCalculator, final Address delegateeAddress) {
-    final boolean delegatedCodeIsWarm =
-        frame.warmUpAddress(delegateeAddress) || gasCalculator.isPrecompile(delegateeAddress);
-    return delegatedCodeIsWarm
+  private static long calculateCodeDelegationResolutionGas(
+      final MessageFrame frame, final GasCalculator gasCalculator, final Address targetAddress) {
+    final boolean isWarm =
+        frame.warmUpAddress(targetAddress) || gasCalculator.isPrecompile(targetAddress);
+    return isWarm
         ? gasCalculator.getWarmStorageReadCost()
         : gasCalculator.getColdAccountAccessCost();
   }

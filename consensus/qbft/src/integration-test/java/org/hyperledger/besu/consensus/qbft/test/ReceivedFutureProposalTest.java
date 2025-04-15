@@ -12,24 +12,24 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-package org.hyperledger.besu.consensus.qbft.test;
+package org.hyperledger.besu.consensus.qbft.core.test;
 
-import static org.hyperledger.besu.consensus.qbft.support.IntegrationTestHelpers.createValidPreparedCertificate;
+import static org.hyperledger.besu.consensus.qbft.core.support.IntegrationTestHelpers.createValidPreparedCertificate;
 
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
 import org.hyperledger.besu.consensus.common.bft.payload.SignedData;
-import org.hyperledger.besu.consensus.qbft.messagewrappers.Commit;
-import org.hyperledger.besu.consensus.qbft.messagewrappers.Prepare;
-import org.hyperledger.besu.consensus.qbft.payload.MessageFactory;
-import org.hyperledger.besu.consensus.qbft.payload.PreparePayload;
-import org.hyperledger.besu.consensus.qbft.payload.RoundChangePayload;
-import org.hyperledger.besu.consensus.qbft.statemachine.PreparedCertificate;
-import org.hyperledger.besu.consensus.qbft.support.IntegrationTestHelpers;
-import org.hyperledger.besu.consensus.qbft.support.RoundSpecificPeers;
-import org.hyperledger.besu.consensus.qbft.support.TestContext;
-import org.hyperledger.besu.consensus.qbft.support.TestContextBuilder;
-import org.hyperledger.besu.consensus.qbft.support.ValidatorPeer;
-import org.hyperledger.besu.ethereum.core.Block;
+import org.hyperledger.besu.consensus.qbft.core.messagewrappers.Commit;
+import org.hyperledger.besu.consensus.qbft.core.messagewrappers.Prepare;
+import org.hyperledger.besu.consensus.qbft.core.payload.MessageFactory;
+import org.hyperledger.besu.consensus.qbft.core.payload.PreparePayload;
+import org.hyperledger.besu.consensus.qbft.core.payload.RoundChangePayload;
+import org.hyperledger.besu.consensus.qbft.core.statemachine.PreparedCertificate;
+import org.hyperledger.besu.consensus.qbft.core.support.IntegrationTestHelpers;
+import org.hyperledger.besu.consensus.qbft.core.support.RoundSpecificPeers;
+import org.hyperledger.besu.consensus.qbft.core.support.TestContext;
+import org.hyperledger.besu.consensus.qbft.core.support.TestContextBuilder;
+import org.hyperledger.besu.consensus.qbft.core.support.ValidatorPeer;
+import org.hyperledger.besu.consensus.qbft.core.types.QbftBlock;
 
 import java.util.Collections;
 import java.util.List;
@@ -64,7 +64,7 @@ public class ReceivedFutureProposalTest {
         peers.createSignedRoundChangePayload(targetRound);
 
     final ValidatorPeer nextProposer = context.roundSpecificPeers(targetRound).getProposer();
-    final Block blockToPropose =
+    final QbftBlock blockToPropose =
         context.createBlockForProposalFromChainHead(15, nextProposer.getNodeAddress());
 
     nextProposer.injectProposalForFutureRound(
@@ -79,7 +79,7 @@ public class ReceivedFutureProposalTest {
   @Test
   public void proposalFromIllegalSenderIsDiscardedAndNoPrepareForNewRoundIsSent() {
     final ConsensusRoundIdentifier nextRoundId = new ConsensusRoundIdentifier(1, 1);
-    final Block blockToPropose =
+    final QbftBlock blockToPropose =
         context.createBlockForProposalFromChainHead(15, peers.getProposer().getNodeAddress());
 
     final List<SignedData<RoundChangePayload>> roundChanges =
@@ -96,9 +96,9 @@ public class ReceivedFutureProposalTest {
 
   @Test
   public void proposalWithPrepareCertificateResultsInNewRoundStartingWithExpectedBlock() {
-    final Block initialBlock =
+    final QbftBlock initialBlock =
         context.createBlockForProposalFromChainHead(15, peers.getProposer().getNodeAddress());
-    final Block reproposedBlock =
+    final QbftBlock reproposedBlock =
         context.createBlockForProposalFromChainHead(15, peers.getProposer().getNodeAddress());
     final ConsensusRoundIdentifier nextRoundId = new ConsensusRoundIdentifier(1, 1);
 
@@ -121,9 +121,9 @@ public class ReceivedFutureProposalTest {
 
   @Test
   public void futureProposalWithInsufficientPreparesDoesNotTriggerNextRound() {
-    final Block initialBlock =
+    final QbftBlock initialBlock =
         context.createBlockForProposalFromChainHead(15, peers.getProposer().getNodeAddress());
-    final Block reproposedBlock =
+    final QbftBlock reproposedBlock =
         context.createBlockForProposalFromChainHead(15, peers.getProposer().getNodeAddress());
     final ConsensusRoundIdentifier nextRoundId = new ConsensusRoundIdentifier(1, 1);
 
@@ -146,9 +146,9 @@ public class ReceivedFutureProposalTest {
 
   @Test
   public void futureProposalWithInvalidPrepareDoesNotTriggerNextRound() {
-    final Block initialBlock =
+    final QbftBlock initialBlock =
         context.createBlockForProposalFromChainHead(15, peers.getProposer().getNodeAddress());
-    final Block reproposedBlock = context.createBlockForProposalFromChainHead(15);
+    final QbftBlock reproposedBlock = context.createBlockForProposalFromChainHead(15);
     final ConsensusRoundIdentifier nextRoundId = new ConsensusRoundIdentifier(1, 1);
 
     final PreparedCertificate preparedRoundArtifacts =
@@ -205,7 +205,7 @@ public class ReceivedFutureProposalTest {
 
   @Test
   public void receiveRoundStateIsNotLostIfASecondProposalMessageIsReceivedForCurrentRound() {
-    final Block block =
+    final QbftBlock block =
         context.createBlockForProposalFromChainHead(15, peers.getProposer().getNodeAddress());
     final ConsensusRoundIdentifier nextRoundId = new ConsensusRoundIdentifier(1, 1);
 
@@ -238,7 +238,10 @@ public class ReceivedFutureProposalTest {
     final Commit expectedCommit =
         new Commit(
             IntegrationTestHelpers.createSignedCommitPayload(
-                nextRoundId, block, context.getLocalNodeParams().getNodeKey()));
+                nextRoundId,
+                block,
+                context.getLocalNodeParams().getNodeKey(),
+                context.getBlockEncoder()));
 
     peers.verifyMessagesReceived(expectedCommit);
   }

@@ -122,7 +122,7 @@ public class TransactionPoolFactoryTest {
             25,
             false,
             SyncMode.SNAP,
-            new ForkIdManager(blockchain, Collections.emptyList(), Collections.emptyList(), false));
+            new ForkIdManager(blockchain, Collections.emptyList(), Collections.emptyList()));
     when(ethContext.getEthMessages()).thenReturn(ethMessages);
     when(ethContext.getEthPeers()).thenReturn(ethPeers);
 
@@ -412,7 +412,8 @@ public class TransactionPoolFactoryTest {
         transactionsMessageSender,
         newPooledTransactionHashesMessageSender,
         new BlobCache(),
-        MiningConfiguration.newDefault());
+        MiningConfiguration.newDefault(),
+        false);
   }
 
   private TransactionPool createAndEnableTransactionPool(

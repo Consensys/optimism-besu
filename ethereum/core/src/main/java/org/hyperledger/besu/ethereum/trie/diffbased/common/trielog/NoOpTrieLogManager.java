@@ -12,12 +12,12 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-package org.hyperledger.besu.ethereum.trie.diffbased.common.trielog;
+package org.hyperledger.besu.ethereum.trie.pathbased.common.trielog;
 
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.ethereum.core.BlockHeader;
-import org.hyperledger.besu.ethereum.trie.diffbased.common.worldview.DiffBasedWorldState;
-import org.hyperledger.besu.ethereum.trie.diffbased.common.worldview.accumulator.DiffBasedWorldStateUpdateAccumulator;
+import org.hyperledger.besu.ethereum.trie.pathbased.common.worldview.PathBasedWorldState;
+import org.hyperledger.besu.ethereum.trie.pathbased.common.worldview.accumulator.PathBasedWorldStateUpdateAccumulator;
 import org.hyperledger.besu.plugin.services.trielogs.TrieLog;
 
 import java.util.Optional;
@@ -30,10 +30,10 @@ public class NoOpTrieLogManager extends TrieLogManager {
 
   @Override
   public synchronized void saveTrieLog(
-      final DiffBasedWorldStateUpdateAccumulator<?> localUpdater,
+      final PathBasedWorldStateUpdateAccumulator<?> localUpdater,
       final Hash forWorldStateRootHash,
       final BlockHeader forBlockHeader,
-      final DiffBasedWorldState forWorldState) {
+      final PathBasedWorldState forWorldState) {
     // notify trie log added observers, synchronously
     TrieLog trieLog = trieLogFactory.create(localUpdater, forBlockHeader);
     trieLogObservers.forEach(o -> o.onTrieLogAdded(new TrieLogAddedEvent(trieLog)));

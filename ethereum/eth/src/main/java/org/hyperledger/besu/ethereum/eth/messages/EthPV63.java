@@ -12,22 +12,18 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-package org.hyperledger.besu.ethereum.eth.messages;
+package org.hyperledger.besu.consensus.qbft.core.types;
 
-public final class EthPV63 {
+/** Utility functions for QBFT blocks */
+public interface QbftBlockInterface {
 
-  // Eth63 includes all message types from Eth62 (so see EthPV62 for where the live)
-
-  // Plus some new message types
-  public static final int GET_NODE_DATA = 0x0D;
-
-  public static final int NODE_DATA = 0x0E;
-
-  public static final int GET_RECEIPTS = 0x0F;
-
-  public static final int RECEIPTS = 0x10;
-
-  private EthPV63() {
-    // Holder for constants only
-  }
+  /**
+   * Create a new block using the supplied block with round number replaced. The hash must be for
+   * the committed seal.
+   *
+   * @param proposalBlock the proposal block
+   * @param roundNumber the round number
+   * @return the new qbft block with updated round number
+   */
+  QbftBlock replaceRoundInBlock(QbftBlock proposalBlock, int roundNumber);
 }

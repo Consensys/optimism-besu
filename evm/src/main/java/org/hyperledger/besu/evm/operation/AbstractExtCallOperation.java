@@ -14,23 +14,23 @@
  */
 package org.hyperledger.besu.evm.operation;
 
-import static org.hyperledger.besu.evm.worldstate.DelegatedCodeGasCostHelper.deductDelegatedCodeGasCost;
+import static org.hyperledger.besu.evm.internal.Words.clampedAdd;
 
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.Wei;
 import org.hyperledger.besu.evm.Code;
 import org.hyperledger.besu.evm.EVM;
 import org.hyperledger.besu.evm.account.Account;
-import org.hyperledger.besu.evm.code.CodeV0;
 import org.hyperledger.besu.evm.frame.ExceptionalHaltReason;
 import org.hyperledger.besu.evm.frame.MessageFrame;
 import org.hyperledger.besu.evm.gascalculator.GasCalculator;
 import org.hyperledger.besu.evm.internal.Words;
-import org.hyperledger.besu.evm.worldstate.DelegatedCodeGasCostHelper;
 
 import javax.annotation.Nonnull;
 
 import org.apache.tuweni.bytes.Bytes;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A skeleton class for implementing call operations.
@@ -39,6 +39,8 @@ import org.apache.tuweni.bytes.Bytes;
  * execute, and then updates the current message context based on its execution.
  */
 public abstract class AbstractExtCallOperation extends AbstractCallOperation {
+
+  private static final Logger LOG = LoggerFactory.getLogger(AbstractExtCallOperation.class);
 
   static final int STACK_TO = 0;
   static final int STACK_INPUT_OFFSET = 1;
@@ -116,40 +118,35 @@ public abstract class AbstractExtCallOperation extends AbstractCallOperation {
     }
     if (toBytes.size() > Address.SIZE) {
       return new OperationResult(
-          gasCalculator.memoryExpansionGasCost(frame, inputOffset, inputLength)
-              + (zeroValue ? 0 : gasCalculator.callValueTransferGasCost())
-              + gasCalculator.getColdAccountAccessCost(),
+          clampedAdd(
+              clampedAdd(
+                  gasCalculator.memoryExpansionGasCost(frame, inputOffset, inputLength),
+                  (zeroValue ? 0 : gasCalculator.callValueTransferGasCost())),
+              gasCalculator.getColdAccountAccessCost()),
           ExceptionalHaltReason.ADDRESS_OUT_OF_RANGE);
     }
     Address to = Words.toAddress(toBytes);
     final Account contract = frame.getWorldUpdater().get(to);
 
-    if (contract != null) {
-      final DelegatedCodeGasCostHelper.Result result =
-          deductDelegatedCodeGasCost(frame, gasCalculator, contract);
-      if (result.status() != DelegatedCodeGasCostHelper.Status.SUCCESS) {
-        return new Operation.OperationResult(
-            result.gasCost(), ExceptionalHaltReason.INSUFFICIENT_GAS);
-      }
-    }
-
-    boolean accountCreation = contract == null && !zeroValue;
+    boolean accountCreation = (contract == null || contract.isEmpty()) && !zeroValue;
     long cost =
-        gasCalculator.memoryExpansionGasCost(frame, inputOffset, inputLength)
-            + (zeroValue ? 0 : gasCalculator.callValueTransferGasCost())
-            + (frame.warmUpAddress(to) || gasCalculator.isPrecompile(to)
-                ? gasCalculator.getWarmStorageReadCost()
-                : gasCalculator.getColdAccountAccessCost())
-            + (accountCreation ? gasCalculator.newAccountGasCost() : 0);
-    long currentGas = frame.getRemainingGas() - cost;
-    if (currentGas < 0) {
+        clampedAdd(
+            clampedAdd(
+                clampedAdd(
+                    gasCalculator.memoryExpansionGasCost(frame, inputOffset, inputLength),
+                    (zeroValue ? 0 : gasCalculator.callValueTransferGasCost())),
+                (frame.warmUpAddress(to) || gasCalculator.isPrecompile(to)
+                    ? gasCalculator.getWarmStorageReadCost()
+                    : gasCalculator.getColdAccountAccessCost())),
+            (accountCreation ? gasCalculator.newAccountGasCost() : 0));
+    long currentGas = frame.getRemainingGas();
+    if (currentGas < cost) {
       return new OperationResult(cost, ExceptionalHaltReason.INSUFFICIENT_GAS);
     }
+    currentGas -= cost;
+    frame.expandMemory(inputOffset, inputLength);
 
-    final Code code =
-        contract == null
-            ? CodeV0.EMPTY_CODE
-            : evm.getCode(contract.getCodeHash(), contract.getCode());
+    final Code code = getCode(evm, frame, contract);
 
     // invalid code results in a quick exit
     if (!code.isValid()) {
@@ -178,6 +175,19 @@ public abstract class AbstractExtCallOperation extends AbstractCallOperation {
     if (!zeroValue && (value.compareTo(balance) > 0)) {
       return softFailure(frame, cost);
     }
+
+    try {
+      deductGasForCodeDelegationResolution(frame, contract);
+    } catch (InsufficientGasException e) {
+      LOG.atDebug()
+          .setMessage(
+              "Insufficient gas for covering code delegation resolution. remaining gas {}, gas cost: {}")
+          .addArgument(frame.getRemainingGas())
+          .addArgument(e.getGasCost())
+          .log();
+      return new OperationResult(e.getGasCost(), ExceptionalHaltReason.INSUFFICIENT_GAS);
+    }
+
     // stack too deep, for large gas systems.
     if (frame.getDepth() >= 1024) {
       return softFailure(frame, cost);
@@ -202,7 +212,7 @@ public abstract class AbstractExtCallOperation extends AbstractCallOperation {
         .build();
 
     frame.setState(MessageFrame.State.CODE_SUSPENDED);
-    return new OperationResult(cost + childGas, null, 0);
+    return new OperationResult(clampedAdd(cost, childGas), null, 0);
   }
 
   private @Nonnull OperationResult softFailure(final MessageFrame frame, final long cost) {

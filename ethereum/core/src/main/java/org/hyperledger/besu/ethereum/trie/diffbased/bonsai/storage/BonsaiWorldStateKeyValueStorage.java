@@ -12,7 +12,7 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-package org.hyperledger.besu.ethereum.trie.diffbased.bonsai.storage;
+package org.hyperledger.besu.ethereum.trie.pathbased.bonsai.storage;
 
 import static org.hyperledger.besu.ethereum.storage.keyvalue.KeyValueSegmentIdentifier.ACCOUNT_INFO_STATE;
 import static org.hyperledger.besu.ethereum.storage.keyvalue.KeyValueSegmentIdentifier.ACCOUNT_STORAGE_STORAGE;
@@ -25,10 +25,10 @@ import org.hyperledger.besu.ethereum.storage.StorageProvider;
 import org.hyperledger.besu.ethereum.storage.keyvalue.KeyValueSegmentIdentifier;
 import org.hyperledger.besu.ethereum.trie.MerkleTrie;
 import org.hyperledger.besu.ethereum.trie.common.PmtStateTrieAccountValue;
-import org.hyperledger.besu.ethereum.trie.diffbased.bonsai.storage.flat.BonsaiFlatDbStrategy;
-import org.hyperledger.besu.ethereum.trie.diffbased.bonsai.storage.flat.BonsaiFlatDbStrategyProvider;
-import org.hyperledger.besu.ethereum.trie.diffbased.common.storage.DiffBasedWorldStateKeyValueStorage;
-import org.hyperledger.besu.ethereum.trie.diffbased.common.storage.flat.FlatDbStrategy;
+import org.hyperledger.besu.ethereum.trie.pathbased.bonsai.storage.flat.BonsaiFlatDbStrategy;
+import org.hyperledger.besu.ethereum.trie.pathbased.bonsai.storage.flat.BonsaiFlatDbStrategyProvider;
+import org.hyperledger.besu.ethereum.trie.pathbased.common.storage.PathBasedWorldStateKeyValueStorage;
+import org.hyperledger.besu.ethereum.trie.pathbased.common.storage.flat.FlatDbStrategy;
 import org.hyperledger.besu.ethereum.worldstate.DataStorageConfiguration;
 import org.hyperledger.besu.ethereum.worldstate.FlatDbMode;
 import org.hyperledger.besu.ethereum.worldstate.WorldStateKeyValueStorage;
@@ -48,7 +48,7 @@ import java.util.function.Supplier;
 import org.apache.tuweni.bytes.Bytes;
 import org.apache.tuweni.bytes.Bytes32;
 
-public class BonsaiWorldStateKeyValueStorage extends DiffBasedWorldStateKeyValueStorage
+public class BonsaiWorldStateKeyValueStorage extends PathBasedWorldStateKeyValueStorage
     implements WorldStateKeyValueStorage {
   protected final BonsaiFlatDbStrategyProvider flatDbStrategyProvider;
 
@@ -190,7 +190,7 @@ public class BonsaiWorldStateKeyValueStorage extends DiffBasedWorldStateKeyValue
         getFlatDbStrategy());
   }
 
-  public static class Updater implements DiffBasedWorldStateKeyValueStorage.Updater {
+  public static class Updater implements PathBasedWorldStateKeyValueStorage.Updater {
 
     private final SegmentedKeyValueStorageTransaction composedWorldStateTransaction;
     private final KeyValueStorageTransaction trieLogStorageTransaction;
@@ -307,6 +307,16 @@ public class BonsaiWorldStateKeyValueStorage extends DiffBasedWorldStateKeyValue
     public void commit() {
       // write the log ahead, then the worldstate
       trieLogStorageTransaction.commit();
+      composedWorldStateTransaction.commit();
+    }
+
+    @Override
+    public void commitTrieLogOnly() {
+      trieLogStorageTransaction.commit();
+    }
+
+    @Override
+    public void commitComposedOnly() {
       composedWorldStateTransaction.commit();
     }
 

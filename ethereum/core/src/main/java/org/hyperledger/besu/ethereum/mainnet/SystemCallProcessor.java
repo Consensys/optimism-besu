@@ -12,19 +12,19 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-package org.hyperledger.besu.ethereum.mainnet;
+package org.hyperledger.besu.ethereum.mainnet.systemcall;
 
 import static org.hyperledger.besu.evm.frame.MessageFrame.DEFAULT_MAX_STACK_SIZE;
 
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.Wei;
 import org.hyperledger.besu.ethereum.core.ProcessableBlockHeader;
+import org.hyperledger.besu.ethereum.mainnet.MainnetTransactionProcessor;
 import org.hyperledger.besu.evm.account.Account;
+import org.hyperledger.besu.evm.blockhash.BlockHashLookup;
 import org.hyperledger.besu.evm.code.CodeV0;
 import org.hyperledger.besu.evm.frame.MessageFrame;
-import org.hyperledger.besu.evm.operation.BlockHashOperation;
 import org.hyperledger.besu.evm.processor.AbstractMessageProcessor;
-import org.hyperledger.besu.evm.tracing.OperationTracer;
 import org.hyperledger.besu.evm.worldstate.WorldUpdater;
 
 import java.util.Deque;
@@ -37,6 +37,13 @@ import org.slf4j.LoggerFactory;
 public class SystemCallProcessor {
   private static final Logger LOG = LoggerFactory.getLogger(SystemCallProcessor.class);
 
+  /**
+   * The gas limit as defined in <a
+   * href="https://eips.ethereum.org/EIPS/eip-2935#block-processing">EIP-2935</a> This value is
+   * independent of the gas limit of the block
+   */
+  private static final long SYSTEM_CALL_GAS_LIMIT = 30_000_000L;
+
   /** The system address */
   static final Address SYSTEM_ADDRESS =
       Address.fromHexString("0xfffffffffffffffffffffffffffffffffffffffe");
@@ -48,44 +55,33 @@ public class SystemCallProcessor {
   }
 
   /**
-   * Processes a system call to a specified address, using the provided world state, block header,
-   * operation tracer, and block hash lookup.
+   * Processes a system call.
    *
-   * @param callAddress the address to call.
-   * @param worldState the current world state.
-   * @param blockHeader the current block header.
-   * @param operationTracer the operation tracer for tracing EVM operations.
-   * @param blockHashLookup the block hash lookup function.
-   * @return the output data from the call. If no code exists at the callAddress then an empty Bytes
-   *     is returned.
+   * @param callAddress The address to call.
+   * @param context The system call context. The input data to the system call.
+   * @param inputData The input data to the system call.
+   * @return The output of the system call.
    */
   public Bytes process(
-      final Address callAddress,
-      final WorldUpdater worldState,
-      final ProcessableBlockHeader blockHeader,
-      final OperationTracer operationTracer,
-      final BlockHashOperation.BlockHashLookup blockHashLookup) {
+      final Address callAddress, final BlockProcessingContext context, final Bytes inputData) {
+    WorldUpdater updater = context.getWorldState().updater();
 
     // if no code exists at CALL_ADDRESS, the call must fail silently
-    final Account maybeContract = worldState.get(callAddress);
+    final Account maybeContract = updater.get(callAddress);
     if (maybeContract == null) {
       LOG.trace("System call address not found {}", callAddress);
       return Bytes.EMPTY;
     }
 
-    final AbstractMessageProcessor messageProcessor =
+    final AbstractMessageProcessor processor =
         mainnetTransactionProcessor.getMessageProcessor(MessageFrame.Type.MESSAGE_CALL);
-    final MessageFrame initialFrame =
-        createCallFrame(callAddress, worldState, blockHeader, blockHashLookup);
-
-    return processFrame(initialFrame, messageProcessor, operationTracer, worldState);
-  }
-
-  private Bytes processFrame(
-      final MessageFrame frame,
-      final AbstractMessageProcessor processor,
-      final OperationTracer tracer,
-      final WorldUpdater updater) {
+    final MessageFrame frame =
+        createMessageFrame(
+            callAddress,
+            updater,
+            context.getBlockHeader(),
+            context.getBlockHashLookup(),
+            inputData);
 
     if (!frame.getCode().isValid()) {
       throw new RuntimeException("System call did not execute to completion - opcode invalid");
@@ -93,7 +89,7 @@ public class SystemCallProcessor {
 
     Deque<MessageFrame> stack = frame.getMessageFrameStack();
     while (!stack.isEmpty()) {
-      processor.process(stack.peekFirst(), tracer);
+      processor.process(stack.peekFirst(), context.getOperationTracer());
     }
 
     if (frame.getState() == MessageFrame.State.COMPLETED_SUCCESS) {
@@ -101,15 +97,21 @@ public class SystemCallProcessor {
       return frame.getOutputData();
     }
 
-    // the call must execute to completion
-    throw new RuntimeException("System call did not execute to completion");
+    // The call must execute to completion
+    String errorMessage =
+        frame
+            .getExceptionalHaltReason()
+            .map(haltReason -> "System call halted: " + haltReason.getDescription())
+            .orElse("System call did not execute to completion");
+    throw new RuntimeException(errorMessage);
   }
 
-  private MessageFrame createCallFrame(
+  private MessageFrame createMessageFrame(
       final Address callAddress,
       final WorldUpdater worldUpdater,
       final ProcessableBlockHeader blockHeader,
-      final BlockHashOperation.BlockHashLookup blockHashLookup) {
+      final BlockHashLookup blockHashLookup,
+      final Bytes inputData) {
 
     final Optional<Account> maybeContract = Optional.ofNullable(worldUpdater.get(callAddress));
     final AbstractMessageProcessor processor =
@@ -118,7 +120,7 @@ public class SystemCallProcessor {
     return MessageFrame.builder()
         .maxStackSize(DEFAULT_MAX_STACK_SIZE)
         .worldUpdater(worldUpdater)
-        .initialGas(30_000_000L)
+        .initialGas(SYSTEM_CALL_GAS_LIMIT)
         .originator(SYSTEM_ADDRESS)
         .gasPrice(Wei.ZERO)
         .blobGasPrice(Wei.ZERO)
@@ -130,7 +132,7 @@ public class SystemCallProcessor {
         .type(MessageFrame.Type.MESSAGE_CALL)
         .address(callAddress)
         .contract(callAddress)
-        .inputData(Bytes.EMPTY)
+        .inputData(inputData)
         .sender(SYSTEM_ADDRESS)
         .blockHashLookup(blockHashLookup)
         .code(

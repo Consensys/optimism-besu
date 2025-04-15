@@ -12,17 +12,17 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-package org.hyperledger.besu.ethereum.trie.diffbased.bonsai.storage;
+package org.hyperledger.besu.ethereum.trie.pathbased.bonsai.storage;
 
-import org.hyperledger.besu.ethereum.trie.diffbased.common.StorageSubscriber;
-import org.hyperledger.besu.ethereum.trie.diffbased.common.storage.DiffBasedLayeredWorldStateKeyValueStorage;
+import org.hyperledger.besu.ethereum.trie.pathbased.common.StorageSubscriber;
+import org.hyperledger.besu.ethereum.trie.pathbased.common.storage.PathBasedLayeredWorldStateKeyValueStorage;
 import org.hyperledger.besu.ethereum.worldstate.FlatDbMode;
 import org.hyperledger.besu.plugin.services.storage.KeyValueStorage;
 import org.hyperledger.besu.plugin.services.storage.SnappedKeyValueStorage;
 import org.hyperledger.besu.services.kvstore.LayeredKeyValueStorage;
 
 public class BonsaiWorldStateLayerStorage extends BonsaiSnapshotWorldStateKeyValueStorage
-    implements DiffBasedLayeredWorldStateKeyValueStorage, StorageSubscriber {
+    implements PathBasedLayeredWorldStateKeyValueStorage, StorageSubscriber {
 
   public BonsaiWorldStateLayerStorage(final BonsaiWorldStateKeyValueStorage parent) {
     this(

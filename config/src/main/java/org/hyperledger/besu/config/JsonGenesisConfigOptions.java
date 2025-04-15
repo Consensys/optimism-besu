@@ -47,6 +47,7 @@ public class JsonGenesisConfigOptions implements GenesisConfigOptions {
   private static final String TRANSITIONS_CONFIG_KEY = "transitions";
   private static final String DISCOVERY_CONFIG_KEY = "discovery";
   private static final String CHECKPOINT_CONFIG_KEY = "checkpoint";
+  private static final String BLOB_SCHEDULE_CONFIG_KEY = "blobschedule";
   private static final String ZERO_BASE_FEE_KEY = "zerobasefee";
   private static final String FIXED_BASE_FEE_KEY = "fixedbasefee";
   private static final String WITHDRAWAL_REQUEST_CONTRACT_ADDRESS_KEY =
@@ -55,15 +56,9 @@ public class JsonGenesisConfigOptions implements GenesisConfigOptions {
   private static final String CONSOLIDATION_REQUEST_CONTRACT_ADDRESS_KEY =
       "consolidationrequestcontractaddress";
 
-  /** root node. */
-  protected final ObjectNode configRoot;
-
-  /** genesis config override map. */
-  protected final Map<String, String> configOverrides =
-      new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
-
-  /** transitions config options. */
-  protected final TransitionsConfigOptions transitions;
+  private final ObjectNode configRoot;
+  private final Map<String, String> configOverrides = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+  private final TransitionsConfigOptions transitions;
 
   /**
    * From json object json genesis config options.
@@ -71,7 +66,7 @@ public class JsonGenesisConfigOptions implements GenesisConfigOptions {
    * @param configRoot the config root
    * @return the json genesis config options
    */
-  public static JsonOptimismGenesisConfigOptions fromJsonObject(final ObjectNode configRoot) {
+  public static JsonGenesisConfigOptions fromJsonObject(final ObjectNode configRoot) {
     return fromJsonObjectWithOverrides(configRoot, emptyMap());
   }
 
@@ -82,12 +77,11 @@ public class JsonGenesisConfigOptions implements GenesisConfigOptions {
    * @param configOverrides the config overrides
    * @return the json genesis config options
    */
-  static JsonOptimismGenesisConfigOptions fromJsonObjectWithOverrides(
+  static JsonGenesisConfigOptions fromJsonObjectWithOverrides(
       final ObjectNode configRoot, final Map<String, String> configOverrides) {
     final TransitionsConfigOptions transitionsConfigOptions;
     transitionsConfigOptions = loadTransitionsFrom(configRoot);
-    return new JsonOptimismGenesisConfigOptions(
-        configRoot, configOverrides, transitionsConfigOptions);
+    return new JsonGenesisConfigOptions(configRoot, configOverrides, transitionsConfigOptions);
   }
 
   private static TransitionsConfigOptions loadTransitionsFrom(final ObjectNode parentNode) {
@@ -124,6 +118,8 @@ public class JsonGenesisConfigOptions implements GenesisConfigOptions {
       return ETHASH_CONFIG_KEY;
     } else if (isIbft2()) {
       return IBFT2_CONFIG_KEY;
+    } else if (isIbftLegacy()) {
+      return IBFT_LEGACY_CONFIG_KEY;
     } else if (isQbft()) {
       return QBFT_CONFIG_KEY;
     } else if (isClique()) {
@@ -161,6 +157,13 @@ public class JsonGenesisConfigOptions implements GenesisConfigOptions {
   @Override
   public boolean isPoa() {
     return isQbft() || isClique() || isIbft2() || isIbftLegacy();
+  }
+
+  @Override
+  public IbftLegacyConfigOptions getIbftLegacyConfigOptions() {
+    return JsonUtil.getObjectNode(configRoot, IBFT_LEGACY_CONFIG_KEY)
+        .map(IbftLegacyConfigOptions::new)
+        .orElse(IbftLegacyConfigOptions.DEFAULT);
   }
 
   @Override
@@ -204,6 +207,12 @@ public class JsonGenesisConfigOptions implements GenesisConfigOptions {
     return JsonUtil.getObjectNode(configRoot, ETHASH_CONFIG_KEY)
         .map(EthashConfigOptions::new)
         .orElse(EthashConfigOptions.DEFAULT);
+  }
+
+  @Override
+  public Optional<BlobScheduleOptions> getBlobScheduleOptions() {
+    return JsonUtil.getObjectNode(configRoot, BLOB_SCHEDULE_CONFIG_KEY)
+        .map(BlobScheduleOptions::new);
   }
 
   @Override
@@ -529,6 +538,9 @@ public class JsonGenesisConfigOptions implements GenesisConfigOptions {
     if (isEthHash()) {
       builder.put("ethash", getEthashConfigOptions().asMap());
     }
+    if (isIbftLegacy()) {
+      builder.put("ibft", getIbftLegacyConfigOptions().asMap());
+    }
     if (isIbft2()) {
       builder.put("ibft2", getBftConfigOptions().asMap());
     }
@@ -544,16 +556,14 @@ public class JsonGenesisConfigOptions implements GenesisConfigOptions {
       builder.put("fixedBaseFee", true);
     }
 
+    if (getBlobScheduleOptions().isPresent()) {
+      builder.put("blobSchedule", getBlobScheduleOptions().get().asMap());
+    }
+
     return builder.build();
   }
 
-  /**
-   * Gets optional long value from config, deferring to overrides if they are present.
-   *
-   * @param key string to lookup the value for.
-   * @return OptionalLong value, empty if not present.
-   */
-  protected OptionalLong getOptionalLong(final String key) {
+  private OptionalLong getOptionalLong(final String key) {
     if (configOverrides.containsKey(key)) {
       final String value = configOverrides.get(key);
       return value == null || value.isEmpty()
@@ -564,13 +574,7 @@ public class JsonGenesisConfigOptions implements GenesisConfigOptions {
     }
   }
 
-  /**
-   * Gets an optional int value from config, by key name.
-   *
-   * @param key string to fetch the value by.
-   * @return OptionalInt value.
-   */
-  protected OptionalInt getOptionalInt(final String key) {
+  private OptionalInt getOptionalInt(final String key) {
     if (configOverrides.containsKey(key)) {
       final String value = configOverrides.get(key);
       return value == null || value.isEmpty()
@@ -581,13 +585,7 @@ public class JsonGenesisConfigOptions implements GenesisConfigOptions {
     }
   }
 
-  /**
-   * Gets an optional BigInteger value from config, by key name.
-   *
-   * @param key string key to fetch the value by.
-   * @return Optional BigInteger value.
-   */
-  protected Optional<BigInteger> getOptionalBigInteger(final String key) {
+  private Optional<BigInteger> getOptionalBigInteger(final String key) {
     if (configOverrides.containsKey(key)) {
       final String value = configOverrides.get(key);
       return value == null || value.isEmpty()
@@ -598,13 +596,7 @@ public class JsonGenesisConfigOptions implements GenesisConfigOptions {
     }
   }
 
-  /**
-   * Gets an optional boolean value from config, by key name.
-   *
-   * @param key string to fetch the value by.
-   * @return Optional bolean value.
-   */
-  protected Optional<Boolean> getOptionalBoolean(final String key) {
+  private Optional<Boolean> getOptionalBoolean(final String key) {
     if (configOverrides.containsKey(key)) {
       final String value = configOverrides.get(key);
       return value == null || value.isEmpty()
@@ -615,13 +607,7 @@ public class JsonGenesisConfigOptions implements GenesisConfigOptions {
     }
   }
 
-  /**
-   * Gets an optional Hash value from config, by key name.
-   *
-   * @param key string to fetch the value by.
-   * @return Optional Hash value.
-   */
-  protected Optional<Hash> getOptionalHash(final String key) {
+  private Optional<Hash> getOptionalHash(final String key) {
     if (configOverrides.containsKey(key)) {
       final String overrideHash = configOverrides.get(key);
       return Optional.of(Hash.fromHexString(overrideHash));

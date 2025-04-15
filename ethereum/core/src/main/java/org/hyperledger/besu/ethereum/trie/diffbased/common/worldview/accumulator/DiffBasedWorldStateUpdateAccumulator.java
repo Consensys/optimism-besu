@@ -12,7 +12,7 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-package org.hyperledger.besu.ethereum.trie.diffbased.common.worldview.accumulator;
+package org.hyperledger.besu.ethereum.trie.pathbased.common.worldview.accumulator;
 
 import org.hyperledger.besu.datatypes.AccountValue;
 import org.hyperledger.besu.datatypes.Address;
@@ -21,14 +21,14 @@ import org.hyperledger.besu.datatypes.StorageSlotKey;
 import org.hyperledger.besu.datatypes.Wei;
 import org.hyperledger.besu.ethereum.rlp.RLP;
 import org.hyperledger.besu.ethereum.trie.MerkleTrieException;
-import org.hyperledger.besu.ethereum.trie.diffbased.common.DiffBasedAccount;
-import org.hyperledger.besu.ethereum.trie.diffbased.common.DiffBasedValue;
-import org.hyperledger.besu.ethereum.trie.diffbased.common.storage.DiffBasedWorldStateKeyValueStorage;
-import org.hyperledger.besu.ethereum.trie.diffbased.common.worldview.DiffBasedWorldState;
-import org.hyperledger.besu.ethereum.trie.diffbased.common.worldview.DiffBasedWorldView;
-import org.hyperledger.besu.ethereum.trie.diffbased.common.worldview.accumulator.preload.AccountConsumingMap;
-import org.hyperledger.besu.ethereum.trie.diffbased.common.worldview.accumulator.preload.Consumer;
-import org.hyperledger.besu.ethereum.trie.diffbased.common.worldview.accumulator.preload.StorageConsumingMap;
+import org.hyperledger.besu.ethereum.trie.pathbased.common.PathBasedAccount;
+import org.hyperledger.besu.ethereum.trie.pathbased.common.PathBasedValue;
+import org.hyperledger.besu.ethereum.trie.pathbased.common.storage.PathBasedWorldStateKeyValueStorage;
+import org.hyperledger.besu.ethereum.trie.pathbased.common.worldview.PathBasedWorldState;
+import org.hyperledger.besu.ethereum.trie.pathbased.common.worldview.PathBasedWorldView;
+import org.hyperledger.besu.ethereum.trie.pathbased.common.worldview.accumulator.preload.AccountConsumingMap;
+import org.hyperledger.besu.ethereum.trie.pathbased.common.worldview.accumulator.preload.Consumer;
+import org.hyperledger.besu.ethereum.trie.pathbased.common.worldview.accumulator.preload.StorageConsumingMap;
 import org.hyperledger.besu.evm.account.Account;
 import org.hyperledger.besu.evm.account.MutableAccount;
 import org.hyperledger.besu.evm.internal.EvmConfiguration;
@@ -55,31 +55,31 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @SuppressWarnings("unchecked")
-public abstract class DiffBasedWorldStateUpdateAccumulator<ACCOUNT extends DiffBasedAccount>
-    extends AbstractWorldUpdater<DiffBasedWorldView, ACCOUNT>
-    implements DiffBasedWorldView, TrieLogAccumulator {
+public abstract class PathBasedWorldStateUpdateAccumulator<ACCOUNT extends PathBasedAccount>
+    extends AbstractWorldUpdater<PathBasedWorldView, ACCOUNT>
+    implements PathBasedWorldView, TrieLogAccumulator {
   private static final Logger LOG =
-      LoggerFactory.getLogger(DiffBasedWorldStateUpdateAccumulator.class);
-  protected final Consumer<DiffBasedValue<ACCOUNT>> accountPreloader;
+      LoggerFactory.getLogger(PathBasedWorldStateUpdateAccumulator.class);
+  protected final Consumer<PathBasedValue<ACCOUNT>> accountPreloader;
   protected final Consumer<StorageSlotKey> storagePreloader;
 
-  private final AccountConsumingMap<DiffBasedValue<ACCOUNT>> accountsToUpdate;
-  private final Map<Address, DiffBasedValue<Bytes>> codeToUpdate = new ConcurrentHashMap<>();
+  private final AccountConsumingMap<PathBasedValue<ACCOUNT>> accountsToUpdate;
+  private final Map<Address, PathBasedValue<Bytes>> codeToUpdate = new ConcurrentHashMap<>();
   private final Set<Address> storageToClear = Collections.synchronizedSet(new HashSet<>());
   protected final EvmConfiguration evmConfiguration;
 
   // storage sub mapped by _hashed_ key.  This is because in self_destruct calls we need to
   // enumerate the old storage and delete it.  Those are trie stored by hashed key by spec and the
   // alternative was to keep a giant pre-image cache of the entire trie.
-  private final Map<Address, StorageConsumingMap<StorageSlotKey, DiffBasedValue<UInt256>>>
+  private final Map<Address, StorageConsumingMap<StorageSlotKey, PathBasedValue<UInt256>>>
       storageToUpdate = new ConcurrentHashMap<>();
 
   private final Map<UInt256, Hash> storageKeyHashLookup = new ConcurrentHashMap<>();
   protected boolean isAccumulatorStateChanged;
 
-  public DiffBasedWorldStateUpdateAccumulator(
-      final DiffBasedWorldView world,
-      final Consumer<DiffBasedValue<ACCOUNT>> accountPreloader,
+  public PathBasedWorldStateUpdateAccumulator(
+      final PathBasedWorldView world,
+      final Consumer<PathBasedValue<ACCOUNT>> accountPreloader,
       final Consumer<StorageSlotKey> storagePreloader,
       final EvmConfiguration evmConfiguration) {
     super(world, evmConfiguration);
@@ -90,7 +90,7 @@ public abstract class DiffBasedWorldStateUpdateAccumulator<ACCOUNT extends DiffB
     this.evmConfiguration = evmConfiguration;
   }
 
-  public void cloneFromUpdater(final DiffBasedWorldStateUpdateAccumulator<ACCOUNT> source) {
+  public void cloneFromUpdater(final PathBasedWorldStateUpdateAccumulator<ACCOUNT> source) {
     accountsToUpdate.putAll(source.getAccountsToUpdate());
     codeToUpdate.putAll(source.codeToUpdate);
     storageToClear.addAll(source.storageToClear);
@@ -111,48 +111,56 @@ public abstract class DiffBasedWorldStateUpdateAccumulator<ACCOUNT extends DiffB
    * @param source The source accumulator
    */
   public void importStateChangesFromSource(
-      final DiffBasedWorldStateUpdateAccumulator<ACCOUNT> source) {
+      final PathBasedWorldStateUpdateAccumulator<ACCOUNT> source) {
     source
         .getAccountsToUpdate()
         .forEach(
-            (address, diffBasedValue) -> {
+            (address, pathBasedValue) -> {
               ACCOUNT copyPrior =
-                  diffBasedValue.getPrior() != null
-                      ? copyAccount(diffBasedValue.getPrior(), this, false)
+                  pathBasedValue.getPrior() != null
+                      ? copyAccount(pathBasedValue.getPrior(), this, false)
                       : null;
               ACCOUNT copyUpdated =
-                  diffBasedValue.getUpdated() != null
-                      ? copyAccount(diffBasedValue.getUpdated(), this, true)
+                  pathBasedValue.getUpdated() != null
+                      ? copyAccount(pathBasedValue.getUpdated(), this, true)
                       : null;
-              accountsToUpdate.put(address, new DiffBasedValue<>(copyPrior, copyUpdated));
+              accountsToUpdate.put(
+                  address,
+                  new PathBasedValue<>(copyPrior, copyUpdated, pathBasedValue.isLastStepCleared()));
             });
     source
         .getCodeToUpdate()
         .forEach(
-            (address, diffBasedValue) -> {
+            (address, pathBasedValue) -> {
               codeToUpdate.put(
                   address,
-                  new DiffBasedValue<>(diffBasedValue.getPrior(), diffBasedValue.getUpdated()));
+                  new PathBasedValue<>(
+                      pathBasedValue.getPrior(),
+                      pathBasedValue.getUpdated(),
+                      pathBasedValue.isLastStepCleared()));
             });
     source
         .getStorageToUpdate()
         .forEach(
             (address, slots) -> {
-              StorageConsumingMap<StorageSlotKey, DiffBasedValue<UInt256>> storageConsumingMap =
+              StorageConsumingMap<StorageSlotKey, PathBasedValue<UInt256>> storageConsumingMap =
                   storageToUpdate.computeIfAbsent(
                       address,
                       k ->
                           new StorageConsumingMap<>(
                               address, new ConcurrentHashMap<>(), storagePreloader));
               slots.forEach(
-                  (storageSlotKey, uInt256DiffBasedValue) -> {
+                  (storageSlotKey, uInt256PathBasedValue) -> {
                     storageConsumingMap.put(
                         storageSlotKey,
-                        new DiffBasedValue<>(
-                            uInt256DiffBasedValue.getPrior(), uInt256DiffBasedValue.getUpdated()));
+                        new PathBasedValue<>(
+                            uInt256PathBasedValue.getPrior(),
+                            uInt256PathBasedValue.getUpdated(),
+                            uInt256PathBasedValue.isLastStepCleared()));
                   });
             });
     storageToClear.addAll(source.storageToClear);
+    storageKeyHashLookup.putAll(source.storageKeyHashLookup);
 
     this.isAccumulatorStateChanged = true;
   }
@@ -169,56 +177,57 @@ public abstract class DiffBasedWorldStateUpdateAccumulator<ACCOUNT extends DiffB
    * @param source The source accumulator
    */
   public void importPriorStateFromSource(
-      final DiffBasedWorldStateUpdateAccumulator<ACCOUNT> source) {
+      final PathBasedWorldStateUpdateAccumulator<ACCOUNT> source) {
 
     source
         .getAccountsToUpdate()
         .forEach(
-            (address, diffBasedValue) -> {
+            (address, pathBasedValue) -> {
               ACCOUNT copyPrior =
-                  diffBasedValue.getPrior() != null
-                      ? copyAccount(diffBasedValue.getPrior(), this, false)
+                  pathBasedValue.getPrior() != null
+                      ? copyAccount(pathBasedValue.getPrior(), this, false)
                       : null;
               ACCOUNT copyUpdated =
-                  diffBasedValue.getPrior() != null
-                      ? copyAccount(diffBasedValue.getPrior(), this, true)
+                  pathBasedValue.getPrior() != null
+                      ? copyAccount(pathBasedValue.getPrior(), this, true)
                       : null;
-              accountsToUpdate.putIfAbsent(address, new DiffBasedValue<>(copyPrior, copyUpdated));
+              accountsToUpdate.putIfAbsent(address, new PathBasedValue<>(copyPrior, copyUpdated));
             });
     source
         .getCodeToUpdate()
         .forEach(
-            (address, diffBasedValue) -> {
+            (address, pathBasedValue) -> {
               codeToUpdate.putIfAbsent(
                   address,
-                  new DiffBasedValue<>(diffBasedValue.getPrior(), diffBasedValue.getPrior()));
+                  new PathBasedValue<>(pathBasedValue.getPrior(), pathBasedValue.getPrior()));
             });
     source
         .getStorageToUpdate()
         .forEach(
             (address, slots) -> {
-              StorageConsumingMap<StorageSlotKey, DiffBasedValue<UInt256>> storageConsumingMap =
+              StorageConsumingMap<StorageSlotKey, PathBasedValue<UInt256>> storageConsumingMap =
                   storageToUpdate.computeIfAbsent(
                       address,
                       k ->
                           new StorageConsumingMap<>(
                               address, new ConcurrentHashMap<>(), storagePreloader));
               slots.forEach(
-                  (storageSlotKey, uInt256DiffBasedValue) -> {
+                  (storageSlotKey, uInt256PathBasedValue) -> {
                     storageConsumingMap.putIfAbsent(
                         storageSlotKey,
-                        new DiffBasedValue<>(
-                            uInt256DiffBasedValue.getPrior(), uInt256DiffBasedValue.getPrior()));
+                        new PathBasedValue<>(
+                            uInt256PathBasedValue.getPrior(), uInt256PathBasedValue.getPrior()));
                   });
             });
+    storageKeyHashLookup.putAll(source.storageKeyHashLookup);
     this.isAccumulatorStateChanged = true;
   }
 
-  protected Consumer<DiffBasedValue<ACCOUNT>> getAccountPreloader() {
+  protected Consumer<PathBasedValue<ACCOUNT>> getAccountPreloader() {
     return accountPreloader;
   }
 
-  protected Consumer<StorageSlotKey> getStoragePreloader() {
+  public Consumer<StorageSlotKey> getStoragePreloader() {
     return storagePreloader;
   }
 
@@ -243,14 +252,14 @@ public abstract class DiffBasedWorldStateUpdateAccumulator<ACCOUNT extends DiffB
 
   @Override
   public MutableAccount createAccount(final Address address, final long nonce, final Wei balance) {
-    DiffBasedValue<ACCOUNT> diffBasedValue = accountsToUpdate.get(address);
+    PathBasedValue<ACCOUNT> pathBasedValue = accountsToUpdate.get(address);
 
-    if (diffBasedValue == null) {
-      diffBasedValue = new DiffBasedValue<>(null, null);
-      accountsToUpdate.put(address, diffBasedValue);
-    } else if (diffBasedValue.getUpdated() != null) {
-      if (diffBasedValue.getUpdated().isEmpty()) {
-        return track(new UpdateTrackingAccount<>(diffBasedValue.getUpdated()));
+    if (pathBasedValue == null) {
+      pathBasedValue = new PathBasedValue<>(null, null);
+      accountsToUpdate.put(address, pathBasedValue);
+    } else if (pathBasedValue.getUpdated() != null) {
+      if (pathBasedValue.getUpdated().isEmpty()) {
+        return track(new UpdateTrackingAccount<>(pathBasedValue.getUpdated()));
       } else {
         throw new IllegalStateException("Cannot create an account when one already exists");
       }
@@ -266,17 +275,17 @@ public abstract class DiffBasedWorldStateUpdateAccumulator<ACCOUNT extends DiffB
             Hash.EMPTY_TRIE_HASH,
             Hash.EMPTY,
             true);
-    diffBasedValue.setUpdated(newAccount);
+    pathBasedValue.setUpdated(newAccount);
     return track(new UpdateTrackingAccount<>(newAccount));
   }
 
   @Override
-  public Map<Address, DiffBasedValue<ACCOUNT>> getAccountsToUpdate() {
+  public Map<Address, PathBasedValue<ACCOUNT>> getAccountsToUpdate() {
     return accountsToUpdate;
   }
 
   @Override
-  public Map<Address, DiffBasedValue<Bytes>> getCodeToUpdate() {
+  public Map<Address, PathBasedValue<Bytes>> getCodeToUpdate() {
     return codeToUpdate;
   }
 
@@ -285,41 +294,41 @@ public abstract class DiffBasedWorldStateUpdateAccumulator<ACCOUNT extends DiffB
   }
 
   @Override
-  public Map<Address, StorageConsumingMap<StorageSlotKey, DiffBasedValue<UInt256>>>
+  public Map<Address, StorageConsumingMap<StorageSlotKey, PathBasedValue<UInt256>>>
       getStorageToUpdate() {
     return storageToUpdate;
   }
 
   @Override
   protected ACCOUNT getForMutation(final Address address) {
-    return loadAccount(address, DiffBasedValue::getUpdated);
+    return loadAccount(address, PathBasedValue::getUpdated);
   }
 
   protected ACCOUNT loadAccount(
-      final Address address, final Function<DiffBasedValue<ACCOUNT>, ACCOUNT> accountFunction) {
+      final Address address, final Function<PathBasedValue<ACCOUNT>, ACCOUNT> accountFunction) {
     try {
-      final DiffBasedValue<ACCOUNT> diffBasedValue = accountsToUpdate.get(address);
-      if (diffBasedValue == null) {
+      final PathBasedValue<ACCOUNT> pathBasedValue = accountsToUpdate.get(address);
+      if (pathBasedValue == null) {
         final Account account;
-        if (wrappedWorldView() instanceof DiffBasedWorldStateUpdateAccumulator) {
-          final DiffBasedWorldStateUpdateAccumulator<ACCOUNT> worldStateUpdateAccumulator =
-              (DiffBasedWorldStateUpdateAccumulator<ACCOUNT>) wrappedWorldView();
+        if (wrappedWorldView() instanceof PathBasedWorldStateUpdateAccumulator) {
+          final PathBasedWorldStateUpdateAccumulator<ACCOUNT> worldStateUpdateAccumulator =
+              (PathBasedWorldStateUpdateAccumulator<ACCOUNT>) wrappedWorldView();
           account = worldStateUpdateAccumulator.loadAccount(address, accountFunction);
         } else {
           account = wrappedWorldView().get(address);
         }
-        if (account instanceof DiffBasedAccount diffBasedAccount) {
-          ACCOUNT mutableAccount = copyAccount((ACCOUNT) diffBasedAccount, this, true);
+        if (account instanceof PathBasedAccount pathBasedAccount) {
+          ACCOUNT mutableAccount = copyAccount((ACCOUNT) pathBasedAccount, this, true);
           accountsToUpdate.put(
-              address, new DiffBasedValue<>((ACCOUNT) diffBasedAccount, mutableAccount));
+              address, new PathBasedValue<>((ACCOUNT) pathBasedAccount, mutableAccount));
           return mutableAccount;
         } else {
           // add the empty read in accountsToUpdate
-          accountsToUpdate.put(address, new DiffBasedValue<>(null, null));
+          accountsToUpdate.put(address, new PathBasedValue<>(null, null));
           return null;
         }
       } else {
-        return accountFunction.apply(diffBasedValue);
+        return accountFunction.apply(pathBasedValue);
       }
     } catch (MerkleTrieException e) {
       // need to throw to trigger the heal
@@ -339,21 +348,16 @@ public abstract class DiffBasedWorldStateUpdateAccumulator<ACCOUNT extends DiffB
   }
 
   @Override
-  public void revert() {
-    super.reset();
-  }
-
-  @Override
   public void commit() {
     this.isAccumulatorStateChanged = true;
 
     for (final Address deletedAddress : getDeletedAccounts()) {
-      final DiffBasedValue<ACCOUNT> accountValue =
+      final PathBasedValue<ACCOUNT> accountValue =
           accountsToUpdate.computeIfAbsent(
               deletedAddress,
-              __ -> loadAccountFromParent(deletedAddress, new DiffBasedValue<>(null, null, true)));
+              __ -> loadAccountFromParent(deletedAddress, new PathBasedValue<>(null, null, true)));
       storageToClear.add(deletedAddress);
-      final DiffBasedValue<Bytes> codeValue = codeToUpdate.get(deletedAddress);
+      final PathBasedValue<Bytes> codeValue = codeToUpdate.get(deletedAddress);
       if (codeValue != null) {
         codeValue.setUpdated(null).setCleared();
       } else {
@@ -361,27 +365,27 @@ public abstract class DiffBasedWorldStateUpdateAccumulator<ACCOUNT extends DiffB
             .getCode(
                 deletedAddress,
                 Optional.ofNullable(accountValue)
-                    .map(DiffBasedValue::getPrior)
-                    .map(DiffBasedAccount::getCodeHash)
+                    .map(PathBasedValue::getPrior)
+                    .map(PathBasedAccount::getCodeHash)
                     .orElse(Hash.EMPTY))
             .ifPresent(
                 deletedCode ->
                     codeToUpdate.put(
-                        deletedAddress, new DiffBasedValue<>(deletedCode, null, true)));
+                        deletedAddress, new PathBasedValue<>(deletedCode, null, true)));
       }
 
       // mark all updated storage as to be cleared
-      final Map<StorageSlotKey, DiffBasedValue<UInt256>> deletedStorageUpdates =
+      final Map<StorageSlotKey, PathBasedValue<UInt256>> deletedStorageUpdates =
           storageToUpdate.computeIfAbsent(
               deletedAddress,
               k ->
                   new StorageConsumingMap<>(
                       deletedAddress, new ConcurrentHashMap<>(), storagePreloader));
-      final Iterator<Map.Entry<StorageSlotKey, DiffBasedValue<UInt256>>> iter =
+      final Iterator<Map.Entry<StorageSlotKey, PathBasedValue<UInt256>>> iter =
           deletedStorageUpdates.entrySet().iterator();
       while (iter.hasNext()) {
-        final Map.Entry<StorageSlotKey, DiffBasedValue<UInt256>> updateEntry = iter.next();
-        final DiffBasedValue<UInt256> updatedSlot = updateEntry.getValue();
+        final Map.Entry<StorageSlotKey, PathBasedValue<UInt256>> updateEntry = iter.next();
+        final PathBasedValue<UInt256> updatedSlot = updateEntry.getValue();
         if (updatedSlot.getPrior() == null || updatedSlot.getPrior().isZero()) {
           iter.remove();
         } else {
@@ -401,7 +405,7 @@ public abstract class DiffBasedWorldStateUpdateAccumulator<ACCOUNT extends DiffB
                   if (!deletedStorageUpdates.containsKey(storageSlotKey)) {
                     final UInt256 value = UInt256.fromBytes(RLP.decodeOne(entryValue));
                     deletedStorageUpdates.put(
-                        storageSlotKey, new DiffBasedValue<>(value, null, true));
+                        storageSlotKey, new PathBasedValue<>(value, null, true));
                   }
                 });
       }
@@ -416,9 +420,9 @@ public abstract class DiffBasedWorldStateUpdateAccumulator<ACCOUNT extends DiffB
             tracked -> {
               final Address updatedAddress = tracked.getAddress();
               final ACCOUNT updatedAccount;
-              final DiffBasedValue<ACCOUNT> updatedAccountValue =
+              final PathBasedValue<ACCOUNT> updatedAccountValue =
                   accountsToUpdate.get(updatedAddress);
-              final Map<StorageSlotKey, DiffBasedValue<UInt256>> pendingStorageUpdates =
+              final Map<StorageSlotKey, PathBasedValue<UInt256>> pendingStorageUpdates =
                   storageToUpdate.computeIfAbsent(
                       updatedAddress,
                       k ->
@@ -429,9 +433,9 @@ public abstract class DiffBasedWorldStateUpdateAccumulator<ACCOUNT extends DiffB
                 updatedAccount = createAccount(this, tracked);
                 tracked.setWrappedAccount(updatedAccount);
                 if (updatedAccountValue == null) {
-                  accountsToUpdate.put(updatedAddress, new DiffBasedValue<>(null, updatedAccount));
+                  accountsToUpdate.put(updatedAddress, new PathBasedValue<>(null, updatedAccount));
                   codeToUpdate.put(
-                      updatedAddress, new DiffBasedValue<>(null, updatedAccount.getCode()));
+                      updatedAddress, new PathBasedValue<>(null, updatedAccount.getCode()));
                 } else {
                   updatedAccountValue.setUpdated(updatedAccount);
                 }
@@ -449,17 +453,17 @@ public abstract class DiffBasedWorldStateUpdateAccumulator<ACCOUNT extends DiffB
               }
 
               if (tracked.codeWasUpdated()) {
-                final DiffBasedValue<Bytes> pendingCode =
+                final PathBasedValue<Bytes> pendingCode =
                     codeToUpdate.computeIfAbsent(
                         updatedAddress,
                         addr ->
-                            new DiffBasedValue<>(
+                            new PathBasedValue<>(
                                 wrappedWorldView()
                                     .getCode(
                                         addr,
                                         Optional.ofNullable(updatedAccountValue)
-                                            .map(DiffBasedValue::getPrior)
-                                            .map(DiffBasedAccount::getCodeHash)
+                                            .map(PathBasedValue::getPrior)
+                                            .map(PathBasedAccount::getCodeHash)
                                             .orElse(Hash.EMPTY))
                                     .orElse(null),
                                 null));
@@ -482,12 +486,12 @@ public abstract class DiffBasedWorldStateUpdateAccumulator<ACCOUNT extends DiffB
                             new StorageSlotKey(
                                 hashAndSaveSlotPreImage(keyUInt), Optional.of(keyUInt));
                         final UInt256 value = storageUpdate.getValue();
-                        final DiffBasedValue<UInt256> pendingValue =
+                        final PathBasedValue<UInt256> pendingValue =
                             pendingStorageUpdates.get(slotKey);
                         if (pendingValue == null) {
                           pendingStorageUpdates.put(
                               slotKey,
-                              new DiffBasedValue<>(
+                              new PathBasedValue<>(
                                   updatedAccount.getOriginalStorageValue(keyUInt), value));
                         } else {
                           pendingValue.setUpdated(value);
@@ -504,13 +508,11 @@ public abstract class DiffBasedWorldStateUpdateAccumulator<ACCOUNT extends DiffB
                 tracked.setStorageWasCleared(false); // storage already cleared for this transaction
               }
             });
-    getUpdatedAccounts().clear();
-    getDeletedAccounts().clear();
   }
 
   @Override
   public Optional<Bytes> getCode(final Address address, final Hash codeHash) {
-    final DiffBasedValue<Bytes> localCode = codeToUpdate.get(address);
+    final PathBasedValue<Bytes> localCode = codeToUpdate.get(address);
     if (localCode == null) {
       final Optional<Bytes> code = wrappedWorldView().getCode(address, codeHash);
       if (code.isEmpty() && !codeHash.equals(Hash.EMPTY)) {
@@ -533,17 +535,17 @@ public abstract class DiffBasedWorldStateUpdateAccumulator<ACCOUNT extends DiffB
   @Override
   public Optional<UInt256> getStorageValueByStorageSlotKey(
       final Address address, final StorageSlotKey storageSlotKey) {
-    final Map<StorageSlotKey, DiffBasedValue<UInt256>> localAccountStorage =
+    final Map<StorageSlotKey, PathBasedValue<UInt256>> localAccountStorage =
         storageToUpdate.get(address);
     if (localAccountStorage != null) {
-      final DiffBasedValue<UInt256> value = localAccountStorage.get(storageSlotKey);
+      final PathBasedValue<UInt256> value = localAccountStorage.get(storageSlotKey);
       if (value != null) {
         return Optional.ofNullable(value.getUpdated());
       }
     }
     try {
       final Optional<UInt256> valueUInt =
-          (wrappedWorldView() instanceof DiffBasedWorldState worldState)
+          (wrappedWorldView() instanceof PathBasedWorldState worldState)
               ? worldState.getStorageValueByStorageSlotKey(address, storageSlotKey)
               : wrappedWorldView().getStorageValueByStorageSlotKey(address, storageSlotKey);
       storageToUpdate
@@ -552,7 +554,7 @@ public abstract class DiffBasedWorldStateUpdateAccumulator<ACCOUNT extends DiffB
               key ->
                   new StorageConsumingMap<>(address, new ConcurrentHashMap<>(), storagePreloader))
           .put(
-              storageSlotKey, new DiffBasedValue<>(valueUInt.orElse(null), valueUInt.orElse(null)));
+              storageSlotKey, new PathBasedValue<>(valueUInt.orElse(null), valueUInt.orElse(null)));
       return valueUInt;
     } catch (MerkleTrieException e) {
       // need to throw to trigger the heal
@@ -566,10 +568,10 @@ public abstract class DiffBasedWorldStateUpdateAccumulator<ACCOUNT extends DiffB
     // TODO maybe log the read into the trie layer?
     StorageSlotKey storageSlotKey =
         new StorageSlotKey(hashAndSaveSlotPreImage(storageKey), Optional.of(storageKey));
-    final Map<StorageSlotKey, DiffBasedValue<UInt256>> localAccountStorage =
+    final Map<StorageSlotKey, PathBasedValue<UInt256>> localAccountStorage =
         storageToUpdate.get(address);
     if (localAccountStorage != null) {
-      final DiffBasedValue<UInt256> value = localAccountStorage.get(storageSlotKey);
+      final PathBasedValue<UInt256> value = localAccountStorage.get(storageSlotKey);
       if (value != null) {
         if (value.isLastStepCleared()) {
           return UInt256.ZERO;
@@ -593,23 +595,38 @@ public abstract class DiffBasedWorldStateUpdateAccumulator<ACCOUNT extends DiffB
   @Override
   public Map<Bytes32, Bytes> getAllAccountStorage(final Address address, final Hash rootHash) {
     final Map<Bytes32, Bytes> results = wrappedWorldView().getAllAccountStorage(address, rootHash);
-    final StorageConsumingMap<StorageSlotKey, DiffBasedValue<UInt256>> diffBasedValueStorage =
+    final StorageConsumingMap<StorageSlotKey, PathBasedValue<UInt256>> pathBasedValueStorage =
         storageToUpdate.get(address);
-    if (diffBasedValueStorage != null) {
+    if (pathBasedValueStorage != null) {
       // hash the key to match the implied storage interface of hashed slotKey
-      diffBasedValueStorage.forEach(
+      pathBasedValueStorage.forEach(
           (key, value) -> results.put(key.getSlotHash(), value.getUpdated()));
     }
     return results;
   }
 
+  /**
+   * Marks the boundary of a transaction by clearing tracking collections.
+   *
+   * <p>These tracking collections store changes made during the transaction. After committing the
+   * transaction, they become unnecessary and can be safely cleared.
+   *
+   * <p>Note: If the transaction is not committed before this method is called, any uncommitted
+   * changes will be lost.
+   */
   @Override
-  public boolean isPersisted() {
+  public void markTransactionBoundary() {
+    getUpdatedAccounts().clear();
+    getDeletedAccounts().clear();
+  }
+
+  @Override
+  public boolean isModifyingHeadWorldState() {
     return true;
   }
 
   @Override
-  public DiffBasedWorldStateKeyValueStorage getWorldStateStorage() {
+  public PathBasedWorldStateKeyValueStorage getWorldStateStorage() {
     return wrappedWorldView().getWorldStateStorage();
   }
 
@@ -661,7 +678,7 @@ public abstract class DiffBasedWorldStateUpdateAccumulator<ACCOUNT extends DiffB
       // non-change, a cached read.
       return;
     }
-    DiffBasedValue<ACCOUNT> accountValue = accountsToUpdate.get(address);
+    PathBasedValue<ACCOUNT> accountValue = accountsToUpdate.get(address);
     if (accountValue == null) {
       accountValue = loadAccountFromParent(address, accountValue);
     }
@@ -669,7 +686,7 @@ public abstract class DiffBasedWorldStateUpdateAccumulator<ACCOUNT extends DiffB
       if (expectedValue == null && replacementValue != null) {
         accountsToUpdate.put(
             address,
-            new DiffBasedValue<>(null, createAccount(this, address, replacementValue, true)));
+            new PathBasedValue<>(null, createAccount(this, address, replacementValue, true)));
       } else {
         throw new IllegalStateException(
             String.format(
@@ -702,13 +719,13 @@ public abstract class DiffBasedWorldStateUpdateAccumulator<ACCOUNT extends DiffB
     }
   }
 
-  private DiffBasedValue<ACCOUNT> loadAccountFromParent(
-      final Address address, final DiffBasedValue<ACCOUNT> defaultValue) {
+  private PathBasedValue<ACCOUNT> loadAccountFromParent(
+      final Address address, final PathBasedValue<ACCOUNT> defaultValue) {
     try {
       final Account parentAccount = wrappedWorldView().get(address);
-      if (parentAccount instanceof DiffBasedAccount account) {
-        final DiffBasedValue<ACCOUNT> loadedAccountValue =
-            new DiffBasedValue<>(copyAccount((ACCOUNT) account), ((ACCOUNT) account));
+      if (parentAccount instanceof PathBasedAccount account) {
+        final PathBasedValue<ACCOUNT> loadedAccountValue =
+            new PathBasedValue<>(copyAccount((ACCOUNT) account), ((ACCOUNT) account));
         accountsToUpdate.put(address, loadedAccountValue);
         return loadedAccountValue;
       } else {
@@ -727,7 +744,7 @@ public abstract class DiffBasedWorldStateUpdateAccumulator<ACCOUNT extends DiffB
       // non-change, a cached read.
       return;
     }
-    DiffBasedValue<Bytes> codeValue = codeToUpdate.get(address);
+    PathBasedValue<Bytes> codeValue = codeToUpdate.get(address);
     if (codeValue == null) {
       final Bytes storedCode =
           wrappedWorldView()
@@ -735,14 +752,14 @@ public abstract class DiffBasedWorldStateUpdateAccumulator<ACCOUNT extends DiffB
                   address, Optional.ofNullable(expectedCode).map(Hash::hash).orElse(Hash.EMPTY))
               .orElse(Bytes.EMPTY);
       if (!storedCode.isEmpty()) {
-        codeValue = new DiffBasedValue<>(storedCode, storedCode);
+        codeValue = new PathBasedValue<>(storedCode, storedCode);
         codeToUpdate.put(address, codeValue);
       }
     }
 
     if (codeValue == null) {
       if ((expectedCode == null || expectedCode.isEmpty()) && replacementCode != null) {
-        codeToUpdate.put(address, new DiffBasedValue<>(null, replacementCode));
+        codeToUpdate.put(address, new PathBasedValue<>(null, replacementCode));
       } else {
         throw new IllegalStateException(
             String.format(
@@ -770,10 +787,10 @@ public abstract class DiffBasedWorldStateUpdateAccumulator<ACCOUNT extends DiffB
     }
   }
 
-  private Map<StorageSlotKey, DiffBasedValue<UInt256>> maybeCreateStorageMap(
-      final Map<StorageSlotKey, DiffBasedValue<UInt256>> storageMap, final Address address) {
+  private Map<StorageSlotKey, PathBasedValue<UInt256>> maybeCreateStorageMap(
+      final Map<StorageSlotKey, PathBasedValue<UInt256>> storageMap, final Address address) {
     if (storageMap == null) {
-      final StorageConsumingMap<StorageSlotKey, DiffBasedValue<UInt256>> newMap =
+      final StorageConsumingMap<StorageSlotKey, PathBasedValue<UInt256>> newMap =
           new StorageConsumingMap<>(address, new ConcurrentHashMap<>(), storagePreloader);
       storageToUpdate.put(address, newMap);
       return newMap;
@@ -795,13 +812,13 @@ public abstract class DiffBasedWorldStateUpdateAccumulator<ACCOUNT extends DiffB
       // corner case on deletes, non-change
       return;
     }
-    final Map<StorageSlotKey, DiffBasedValue<UInt256>> storageMap = storageToUpdate.get(address);
-    DiffBasedValue<UInt256> slotValue = storageMap == null ? null : storageMap.get(storageSlotKey);
+    final Map<StorageSlotKey, PathBasedValue<UInt256>> storageMap = storageToUpdate.get(address);
+    PathBasedValue<UInt256> slotValue = storageMap == null ? null : storageMap.get(storageSlotKey);
     if (slotValue == null) {
       final Optional<UInt256> storageValue =
           wrappedWorldView().getStorageValueByStorageSlotKey(address, storageSlotKey);
       if (storageValue.isPresent()) {
-        slotValue = new DiffBasedValue<>(storageValue.get(), storageValue.get());
+        slotValue = new PathBasedValue<>(storageValue.get(), storageValue.get());
         storageToUpdate
             .computeIfAbsent(
                 address,
@@ -813,7 +830,7 @@ public abstract class DiffBasedWorldStateUpdateAccumulator<ACCOUNT extends DiffB
     if (slotValue == null) {
       if ((expectedValue == null || expectedValue.isZero()) && replacementValue != null) {
         maybeCreateStorageMap(storageMap, address)
-            .put(storageSlotKey, new DiffBasedValue<>(null, replacementValue));
+            .put(storageSlotKey, new PathBasedValue<>(null, replacementValue));
       } else {
         throw new IllegalStateException(
             String.format(
@@ -840,7 +857,7 @@ public abstract class DiffBasedWorldStateUpdateAccumulator<ACCOUNT extends DiffB
                 existingSlotValue == null ? "null" : existingSlotValue.toShortHexString()));
       }
       if (replacementValue == null && slotValue.getPrior() == null) {
-        final Map<StorageSlotKey, DiffBasedValue<UInt256>> thisStorageUpdate =
+        final Map<StorageSlotKey, PathBasedValue<UInt256>> thisStorageUpdate =
             maybeCreateStorageMap(storageMap, address);
         thisStorageUpdate.remove(storageSlotKey);
         if (thisStorageUpdate.isEmpty()) {
@@ -867,6 +884,25 @@ public abstract class DiffBasedWorldStateUpdateAccumulator<ACCOUNT extends DiffB
     isAccumulatorStateChanged = false;
   }
 
+  /**
+   * Reverts all changes that have not yet been committed.
+   *
+   * <p>This method calls the `reset` method of the superclass, which cancels all changes that have
+   * not yet been committed. This effectively reverts the state to the last committed state.
+   */
+  @Override
+  public void revert() {
+    super.reset();
+  }
+
+  /**
+   * Resets the accumulator by clearing all changes, including those that have been committed.
+   *
+   * <p>This method clears all internal maps and data structures that track changes. This includes
+   * clearing the storage to clear, storage to update, code to update, accounts to update, and other
+   * related data structures. This effectively removes all changes, even those that have been
+   * committed in the accumulator.
+   */
   @Override
   public void reset() {
     storageToClear.clear();
@@ -893,21 +929,21 @@ public abstract class DiffBasedWorldStateUpdateAccumulator<ACCOUNT extends DiffB
     return hash;
   }
 
-  public abstract DiffBasedWorldStateUpdateAccumulator<ACCOUNT> copy();
+  public abstract PathBasedWorldStateUpdateAccumulator<ACCOUNT> copy();
 
   protected abstract ACCOUNT copyAccount(final ACCOUNT account);
 
   protected abstract ACCOUNT copyAccount(
-      final ACCOUNT toCopy, final DiffBasedWorldView context, final boolean mutable);
+      final ACCOUNT toCopy, final PathBasedWorldView context, final boolean mutable);
 
   protected abstract ACCOUNT createAccount(
-      final DiffBasedWorldView context,
+      final PathBasedWorldView context,
       final Address address,
       final AccountValue stateTrieAccount,
       final boolean mutable);
 
   protected abstract ACCOUNT createAccount(
-      final DiffBasedWorldView context,
+      final PathBasedWorldView context,
       final Address address,
       final Hash addressHash,
       final long nonce,
@@ -917,7 +953,7 @@ public abstract class DiffBasedWorldStateUpdateAccumulator<ACCOUNT extends DiffB
       final boolean mutable);
 
   protected abstract ACCOUNT createAccount(
-      final DiffBasedWorldView context, final UpdateTrackingAccount<ACCOUNT> tracked);
+      final PathBasedWorldView context, final UpdateTrackingAccount<ACCOUNT> tracked);
 
   protected abstract void assertCloseEnoughForDiffing(
       final ACCOUNT source, final AccountValue account, final String context);

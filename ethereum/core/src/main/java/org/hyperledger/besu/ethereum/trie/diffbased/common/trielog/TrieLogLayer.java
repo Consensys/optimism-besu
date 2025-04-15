@@ -12,7 +12,7 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-package org.hyperledger.besu.ethereum.trie.diffbased.common.trielog;
+package org.hyperledger.besu.ethereum.trie.pathbased.common.trielog;
 
 import static com.google.common.base.Preconditions.checkState;
 
@@ -20,7 +20,7 @@ import org.hyperledger.besu.datatypes.AccountValue;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.datatypes.StorageSlotKey;
-import org.hyperledger.besu.ethereum.trie.diffbased.common.DiffBasedValue;
+import org.hyperledger.besu.ethereum.trie.pathbased.common.PathBasedValue;
 import org.hyperledger.besu.plugin.services.trielogs.TrieLog;
 
 import java.util.HashMap;
@@ -47,21 +47,21 @@ public class TrieLogLayer implements TrieLog {
   protected Hash blockHash;
   protected Optional<Long> blockNumber = Optional.empty();
 
-  Map<Address, DiffBasedValue<AccountValue>> getAccounts() {
+  Map<Address, PathBasedValue<AccountValue>> getAccounts() {
     return accounts;
   }
 
-  Map<Address, DiffBasedValue<Bytes>> getCode() {
+  Map<Address, PathBasedValue<Bytes>> getCode() {
     return code;
   }
 
-  Map<Address, Map<StorageSlotKey, DiffBasedValue<UInt256>>> getStorage() {
+  Map<Address, Map<StorageSlotKey, PathBasedValue<UInt256>>> getStorage() {
     return storage;
   }
 
-  protected final Map<Address, DiffBasedValue<AccountValue>> accounts;
-  protected final Map<Address, DiffBasedValue<Bytes>> code;
-  protected final Map<Address, Map<StorageSlotKey, DiffBasedValue<UInt256>>> storage;
+  protected final Map<Address, PathBasedValue<AccountValue>> accounts;
+  protected final Map<Address, PathBasedValue<Bytes>> code;
+  protected final Map<Address, Map<StorageSlotKey, PathBasedValue<UInt256>>> storage;
   protected boolean frozen = false;
 
   public TrieLogLayer() {
@@ -102,14 +102,14 @@ public class TrieLogLayer implements TrieLog {
   public TrieLogLayer addAccountChange(
       final Address address, final AccountValue oldValue, final AccountValue newValue) {
     checkState(!frozen, "Layer is Frozen");
-    accounts.put(address, new DiffBasedValue<>(oldValue, newValue));
+    accounts.put(address, new PathBasedValue<>(oldValue, newValue));
     return this;
   }
 
   public TrieLogLayer addCodeChange(
       final Address address, final Bytes oldValue, final Bytes newValue, final Hash blockHash) {
     checkState(!frozen, "Layer is Frozen");
-    code.put(address, new DiffBasedValue<>(oldValue, newValue, newValue == null));
+    code.put(address, new PathBasedValue<>(oldValue, newValue, newValue == null));
     return this;
   }
 
@@ -121,22 +121,22 @@ public class TrieLogLayer implements TrieLog {
     checkState(!frozen, "Layer is Frozen");
     storage
         .computeIfAbsent(address, a -> new TreeMap<>())
-        .put(slot, new DiffBasedValue<>(oldValue, newValue));
+        .put(slot, new PathBasedValue<>(oldValue, newValue));
     return this;
   }
 
   @Override
-  public Map<Address, DiffBasedValue<AccountValue>> getAccountChanges() {
+  public Map<Address, PathBasedValue<AccountValue>> getAccountChanges() {
     return accounts;
   }
 
   @Override
-  public Map<Address, DiffBasedValue<Bytes>> getCodeChanges() {
+  public Map<Address, PathBasedValue<Bytes>> getCodeChanges() {
     return code;
   }
 
   @Override
-  public Map<Address, Map<StorageSlotKey, DiffBasedValue<UInt256>>> getStorageChanges() {
+  public Map<Address, Map<StorageSlotKey, PathBasedValue<UInt256>>> getStorageChanges() {
     return storage;
   }
 
@@ -145,18 +145,18 @@ public class TrieLogLayer implements TrieLog {
   }
 
   @Override
-  public Map<StorageSlotKey, DiffBasedValue<UInt256>> getStorageChanges(final Address address) {
+  public Map<StorageSlotKey, PathBasedValue<UInt256>> getStorageChanges(final Address address) {
     return storage.getOrDefault(address, Map.of());
   }
 
   @Override
   public Optional<Bytes> getPriorCode(final Address address) {
-    return Optional.ofNullable(code.get(address)).map(DiffBasedValue::getPrior);
+    return Optional.ofNullable(code.get(address)).map(PathBasedValue::getPrior);
   }
 
   @Override
   public Optional<Bytes> getCode(final Address address) {
-    return Optional.ofNullable(code.get(address)).map(DiffBasedValue::getUpdated);
+    return Optional.ofNullable(code.get(address)).map(PathBasedValue::getUpdated);
   }
 
   @Override
@@ -164,7 +164,7 @@ public class TrieLogLayer implements TrieLog {
       final Address address, final StorageSlotKey storageSlotKey) {
     return Optional.ofNullable(storage.get(address))
         .map(i -> i.get(storageSlotKey))
-        .map(DiffBasedValue::getPrior);
+        .map(PathBasedValue::getPrior);
   }
 
   @Override
@@ -172,24 +172,24 @@ public class TrieLogLayer implements TrieLog {
       final Address address, final StorageSlotKey storageSlotKey) {
     return Optional.ofNullable(storage.get(address))
         .map(i -> i.get(storageSlotKey))
-        .map(DiffBasedValue::getUpdated);
+        .map(PathBasedValue::getUpdated);
   }
 
   @Override
   public Optional<AccountValue> getPriorAccount(final Address address) {
-    return Optional.ofNullable(accounts.get(address)).map(DiffBasedValue::getPrior);
+    return Optional.ofNullable(accounts.get(address)).map(PathBasedValue::getPrior);
   }
 
   @Override
   public Optional<AccountValue> getAccount(final Address address) {
-    return Optional.ofNullable(accounts.get(address)).map(DiffBasedValue::getUpdated);
+    return Optional.ofNullable(accounts.get(address)).map(PathBasedValue::getUpdated);
   }
 
   public String dump() {
     final StringBuilder sb = new StringBuilder();
     sb.append("TrieLog{" + "blockHash=").append(blockHash).append(frozen).append('}');
     sb.append("accounts\n");
-    for (final Map.Entry<Address, DiffBasedValue<AccountValue>> account : accounts.entrySet()) {
+    for (final Map.Entry<Address, PathBasedValue<AccountValue>> account : accounts.entrySet()) {
       sb.append(" : ").append(account.getKey()).append("\n");
       if (Objects.equals(account.getValue().getPrior(), account.getValue().getUpdated())) {
         sb.append("   = ").append(account.getValue().getUpdated()).append("\n");
@@ -199,7 +199,7 @@ public class TrieLogLayer implements TrieLog {
       }
     }
     sb.append("code").append("\n");
-    for (final Map.Entry<Address, DiffBasedValue<Bytes>> code : code.entrySet()) {
+    for (final Map.Entry<Address, PathBasedValue<Bytes>> code : code.entrySet()) {
       sb.append(" : ").append(code.getKey()).append("\n");
       if (Objects.equals(code.getValue().getPrior(), code.getValue().getUpdated())) {
         sb.append("   = ").append(code.getValue().getPrior()).append("\n");
@@ -209,10 +209,10 @@ public class TrieLogLayer implements TrieLog {
       }
     }
     sb.append("Storage").append("\n");
-    for (final Map.Entry<Address, Map<StorageSlotKey, DiffBasedValue<UInt256>>> storage :
+    for (final Map.Entry<Address, Map<StorageSlotKey, PathBasedValue<UInt256>>> storage :
         storage.entrySet()) {
       sb.append(" : ").append(storage.getKey()).append("\n");
-      for (final Map.Entry<StorageSlotKey, DiffBasedValue<UInt256>> slot :
+      for (final Map.Entry<StorageSlotKey, PathBasedValue<UInt256>> slot :
           storage.getValue().entrySet()) {
         final UInt256 originalValue = slot.getValue().getPrior();
         final UInt256 updatedValue = slot.getValue().getUpdated();

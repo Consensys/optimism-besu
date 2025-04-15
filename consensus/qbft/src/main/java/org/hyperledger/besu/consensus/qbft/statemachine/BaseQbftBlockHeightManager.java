@@ -12,16 +12,45 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-package org.hyperledger.besu.consensus.qbft.statemachine;
+package org.hyperledger.besu.consensus.qbft.core.statemachine;
 
-import org.hyperledger.besu.consensus.common.bft.statemachine.BaseBlockHeightManager;
-import org.hyperledger.besu.consensus.qbft.messagewrappers.Commit;
-import org.hyperledger.besu.consensus.qbft.messagewrappers.Prepare;
-import org.hyperledger.besu.consensus.qbft.messagewrappers.Proposal;
-import org.hyperledger.besu.consensus.qbft.messagewrappers.RoundChange;
+import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
+import org.hyperledger.besu.consensus.common.bft.events.RoundExpiry;
+import org.hyperledger.besu.consensus.qbft.core.messagewrappers.Commit;
+import org.hyperledger.besu.consensus.qbft.core.messagewrappers.Prepare;
+import org.hyperledger.besu.consensus.qbft.core.messagewrappers.Proposal;
+import org.hyperledger.besu.consensus.qbft.core.messagewrappers.RoundChange;
+import org.hyperledger.besu.consensus.qbft.core.types.QbftBlockHeader;
 
 /** The interface Base qbft block height manager. */
-public interface BaseQbftBlockHeightManager extends BaseBlockHeightManager {
+public interface BaseQbftBlockHeightManager {
+  /**
+   * Handle block timer expiry.
+   *
+   * @param roundIdentifier the round identifier
+   */
+  void handleBlockTimerExpiry(ConsensusRoundIdentifier roundIdentifier);
+
+  /**
+   * Round expired.
+   *
+   * @param expire the expiry
+   */
+  void roundExpired(RoundExpiry expire);
+
+  /**
+   * Gets chain height.
+   *
+   * @return the chain height
+   */
+  long getChainHeight();
+
+  /**
+   * Gets parent block header.
+   *
+   * @return the parent block header
+   */
+  QbftBlockHeader getParentBlockHeader();
 
   /**
    * Handle proposal payload.

@@ -12,33 +12,33 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-package org.hyperledger.besu.ethereum.trie.diffbased.bonsai.worldview;
+package org.hyperledger.besu.ethereum.trie.pathbased.bonsai.worldview;
 
 import org.hyperledger.besu.datatypes.AccountValue;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.datatypes.StorageSlotKey;
 import org.hyperledger.besu.datatypes.Wei;
-import org.hyperledger.besu.ethereum.trie.diffbased.bonsai.BonsaiAccount;
-import org.hyperledger.besu.ethereum.trie.diffbased.common.DiffBasedValue;
-import org.hyperledger.besu.ethereum.trie.diffbased.common.worldview.DiffBasedWorldView;
-import org.hyperledger.besu.ethereum.trie.diffbased.common.worldview.accumulator.DiffBasedWorldStateUpdateAccumulator;
-import org.hyperledger.besu.ethereum.trie.diffbased.common.worldview.accumulator.preload.Consumer;
+import org.hyperledger.besu.ethereum.trie.pathbased.bonsai.BonsaiAccount;
+import org.hyperledger.besu.ethereum.trie.pathbased.common.PathBasedValue;
+import org.hyperledger.besu.ethereum.trie.pathbased.common.worldview.PathBasedWorldView;
+import org.hyperledger.besu.ethereum.trie.pathbased.common.worldview.accumulator.PathBasedWorldStateUpdateAccumulator;
+import org.hyperledger.besu.ethereum.trie.pathbased.common.worldview.accumulator.preload.Consumer;
 import org.hyperledger.besu.evm.internal.EvmConfiguration;
 import org.hyperledger.besu.evm.worldstate.UpdateTrackingAccount;
 
 public class BonsaiWorldStateUpdateAccumulator
-    extends DiffBasedWorldStateUpdateAccumulator<BonsaiAccount> {
+    extends PathBasedWorldStateUpdateAccumulator<BonsaiAccount> {
   public BonsaiWorldStateUpdateAccumulator(
-      final DiffBasedWorldView world,
-      final Consumer<DiffBasedValue<BonsaiAccount>> accountPreloader,
+      final PathBasedWorldView world,
+      final Consumer<PathBasedValue<BonsaiAccount>> accountPreloader,
       final Consumer<StorageSlotKey> storagePreloader,
       final EvmConfiguration evmConfiguration) {
     super(world, accountPreloader, storagePreloader, evmConfiguration);
   }
 
   @Override
-  public DiffBasedWorldStateUpdateAccumulator<BonsaiAccount> copy() {
+  public PathBasedWorldStateUpdateAccumulator<BonsaiAccount> copy() {
     final BonsaiWorldStateUpdateAccumulator copy =
         new BonsaiWorldStateUpdateAccumulator(
             wrappedWorldView(),
@@ -56,13 +56,13 @@ public class BonsaiWorldStateUpdateAccumulator
 
   @Override
   protected BonsaiAccount copyAccount(
-      final BonsaiAccount toCopy, final DiffBasedWorldView context, final boolean mutable) {
+      final BonsaiAccount toCopy, final PathBasedWorldView context, final boolean mutable) {
     return new BonsaiAccount(toCopy, context, mutable);
   }
 
   @Override
   protected BonsaiAccount createAccount(
-      final DiffBasedWorldView context,
+      final PathBasedWorldView context,
       final Address address,
       final AccountValue stateTrieAccount,
       final boolean mutable) {
@@ -71,7 +71,7 @@ public class BonsaiWorldStateUpdateAccumulator
 
   @Override
   protected BonsaiAccount createAccount(
-      final DiffBasedWorldView context,
+      final PathBasedWorldView context,
       final Address address,
       final Hash addressHash,
       final long nonce,
@@ -85,7 +85,7 @@ public class BonsaiWorldStateUpdateAccumulator
 
   @Override
   protected BonsaiAccount createAccount(
-      final DiffBasedWorldView context, final UpdateTrackingAccount<BonsaiAccount> tracked) {
+      final PathBasedWorldView context, final UpdateTrackingAccount<BonsaiAccount> tracked) {
     return new BonsaiAccount(context, tracked);
   }
 

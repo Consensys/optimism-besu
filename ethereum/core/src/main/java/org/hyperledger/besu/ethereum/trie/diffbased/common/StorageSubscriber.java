@@ -12,7 +12,7 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-package org.hyperledger.besu.ethereum.trie.diffbased.common;
+package org.hyperledger.besu.ethereum.trie.pathbased.common;
 
 public interface StorageSubscriber {
   default void onClearStorage() {}

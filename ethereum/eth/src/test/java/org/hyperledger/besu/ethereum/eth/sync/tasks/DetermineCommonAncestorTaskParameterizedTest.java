@@ -1,5 +1,5 @@
 /*
- * Copyright ConsenSys AG.
+ * Copyright contributors to Besu.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -18,10 +18,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hyperledger.besu.ethereum.core.InMemoryKeyValueStorageProvider.createInMemoryBlockchain;
 import static org.hyperledger.besu.ethereum.core.InMemoryKeyValueStorageProvider.createInMemoryWorldStateArchive;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
-import org.hyperledger.besu.ethereum.ConsensusContext;
 import org.hyperledger.besu.ethereum.ProtocolContext;
-import org.hyperledger.besu.ethereum.chain.BadBlockManager;
 import org.hyperledger.besu.ethereum.chain.MutableBlockchain;
 import org.hyperledger.besu.ethereum.core.Block;
 import org.hyperledger.besu.ethereum.core.BlockBody;
@@ -36,7 +35,12 @@ import org.hyperledger.besu.ethereum.eth.manager.EthProtocolManager;
 import org.hyperledger.besu.ethereum.eth.manager.EthProtocolManagerTestBuilder;
 import org.hyperledger.besu.ethereum.eth.manager.EthProtocolManagerTestUtil;
 import org.hyperledger.besu.ethereum.eth.manager.RespondingEthPeer;
+import org.hyperledger.besu.ethereum.eth.manager.peertask.PeerTaskExecutor;
+import org.hyperledger.besu.ethereum.eth.manager.peertask.PeerTaskExecutorResponseCode;
+import org.hyperledger.besu.ethereum.eth.manager.peertask.PeerTaskExecutorResult;
+import org.hyperledger.besu.ethereum.eth.manager.peertask.task.GetHeadersFromPeerTask;
 import org.hyperledger.besu.ethereum.eth.manager.task.EthTask;
+import org.hyperledger.besu.ethereum.eth.sync.SynchronizerConfiguration;
 import org.hyperledger.besu.ethereum.eth.transactions.TransactionPool;
 import org.hyperledger.besu.ethereum.mainnet.MainnetBlockHeaderFunctions;
 import org.hyperledger.besu.ethereum.mainnet.ProtocolSchedule;
@@ -44,30 +48,31 @@ import org.hyperledger.besu.ethereum.worldstate.WorldStateArchive;
 import org.hyperledger.besu.metrics.noop.NoOpMetricsSystem;
 import org.hyperledger.besu.plugin.services.MetricsSystem;
 
-import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.Stream;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.mockito.Mockito;
 
-public class DetermineCommonAncestorTaskParameterizedTest {
+public abstract class AbstractDetermineCommonAncestorTaskParameterizedTest {
   private final ProtocolSchedule protocolSchedule = ProtocolScheduleFixture.MAINNET;
   private static final BlockDataGenerator blockDataGenerator = new BlockDataGenerator();
   private final MetricsSystem metricsSystem = new NoOpMetricsSystem();
 
   private static Block genesisBlock;
   private static MutableBlockchain localBlockchain;
-  private static final int chainHeight = 50;
+  protected static final int chainHeight = 50;
 
   private MutableBlockchain remoteBlockchain;
+  private PeerTaskExecutor peerTaskExecutor;
 
   @BeforeAll
   public static void setupClass() {
@@ -89,22 +94,15 @@ public class DetermineCommonAncestorTaskParameterizedTest {
   @BeforeEach
   public void setup() {
     remoteBlockchain = createInMemoryBlockchain(genesisBlock);
+    peerTaskExecutor = mock(PeerTaskExecutor.class);
   }
 
-  public static Stream<Arguments> parameters() throws IOException {
-    final int[] requestSizes = {5, 12, chainHeight, chainHeight * 2};
-    final Stream.Builder<Arguments> builder = Stream.builder();
-    for (final int requestSize : requestSizes) {
-      for (int i = 0; i <= chainHeight; i++) {
-        builder.add(Arguments.of(requestSize, i));
-      }
-    }
-    return builder.build();
-  }
-
-  @ParameterizedTest(name = "requestSize={0}, commonAncestor={1}")
+  @ParameterizedTest(name = "requestSize={0}, commonAncestor={1}, isPeerTaskSystemEnabled={2}")
   @MethodSource("parameters")
-  public void searchesAgainstNetwork(final int headerRequestSize, final int commonAncestorHeight) {
+  public void searchesAgainstNetwork(
+      final int headerRequestSize,
+      final int commonAncestorHeight,
+      final boolean isPeerTaskSystemEnabled) {
     BlockHeader commonHeader = genesisBlock.getHeader();
     for (long i = 1; i <= commonAncestorHeight; i++) {
       commonHeader = localBlockchain.getBlockHeader(i).get();
@@ -142,6 +140,7 @@ public class DetermineCommonAncestorTaskParameterizedTest {
             .setWorldStateArchive(worldStateArchive)
             .setTransactionPool(mock(TransactionPool.class))
             .setEthereumWireProtocolConfiguration(EthProtocolConfiguration.defaultConfig())
+            .setPeerTaskExecutor(peerTaskExecutor)
             .build();
     final RespondingEthPeer.Responder responder =
         RespondingEthPeer.blockchainResponder(remoteBlockchain);
@@ -154,11 +153,10 @@ public class DetermineCommonAncestorTaskParameterizedTest {
 
     final EthContext ethContext = ethProtocolManager.ethContext();
     final ProtocolContext protocolContext =
-        new ProtocolContext(
-            localBlockchain,
-            worldStateArchive,
-            mock(ConsensusContext.class),
-            new BadBlockManager());
+        new ProtocolContext.Builder()
+            .withBlockchain(localBlockchain)
+            .withWorldStateArchive(worldStateArchive)
+            .build();
 
     final EthTask<BlockHeader> task =
         DetermineCommonAncestorTask.create(
@@ -167,7 +165,32 @@ public class DetermineCommonAncestorTaskParameterizedTest {
             ethContext,
             respondingEthPeer.getEthPeer(),
             headerRequestSize,
+            SynchronizerConfiguration.builder()
+                .isPeerTaskSystemEnabled(isPeerTaskSystemEnabled)
+                .build(),
             metricsSystem);
+
+    when(peerTaskExecutor.executeAgainstPeer(
+            Mockito.any(GetHeadersFromPeerTask.class), Mockito.eq(respondingEthPeer.getEthPeer())))
+        .thenAnswer(
+            (invocationOnMock) -> {
+              GetHeadersFromPeerTask getHeadersTask =
+                  invocationOnMock.getArgument(0, GetHeadersFromPeerTask.class);
+              long blockNumber = getHeadersTask.getBlockNumber();
+              int maxHeaders = getHeadersTask.getMaxHeaders();
+              int skip = getHeadersTask.getSkip();
+
+              List<BlockHeader> headers = new ArrayList<>();
+              long lowerBound = Math.max(0, blockNumber - (maxHeaders - 1) * (skip + 1));
+              for (long i = blockNumber; i > lowerBound; i -= skip + 1) {
+                headers.add(remoteBlockchain.getBlockHeader(i).get());
+              }
+
+              return new PeerTaskExecutorResult<>(
+                  Optional.of(headers),
+                  PeerTaskExecutorResponseCode.SUCCESS,
+                  Optional.of(respondingEthPeer.getEthPeer()));
+            });
 
     final CompletableFuture<BlockHeader> future = task.run();
     respondingEthPeer.respondWhile(responder, () -> !future.isDone());

@@ -12,7 +12,7 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-package org.hyperledger.besu.ethereum.trie.diffbased.common.storage.flat;
+package org.hyperledger.besu.ethereum.trie.pathbased.common.storage.flat;
 
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.metrics.BesuMetricCategory;

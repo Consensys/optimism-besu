@@ -38,6 +38,22 @@ public interface BlockchainService extends BesuService {
   Optional<BlockContext> getBlockByNumber(final long number);
 
   /**
+   * Gets block by hash
+   *
+   * @param hash the block hash
+   * @return the BlockContext
+   */
+  Optional<BlockContext> getBlockByHash(final Hash hash);
+
+  /**
+   * Gets block header by hash
+   *
+   * @param hash the block hash
+   * @return the block header if block exists otherwise empty
+   */
+  Optional<BlockHeader> getBlockHeaderByHash(final Hash hash);
+
+  /**
    * Get the hash of the chain head
    *
    * @return chain head hash
@@ -59,7 +75,8 @@ public interface BlockchainService extends BesuService {
    * @param blockBody the block body
    * @param receipts the transaction receipts
    */
-  void storeBlock(BlockHeader blockHeader, BlockBody blockBody, List<TransactionReceipt> receipts);
+  void storeBlock(
+      BlockHeader blockHeader, BlockBody blockBody, List<? extends TransactionReceipt> receipts);
 
   /**
    * Get the block header of the chain head

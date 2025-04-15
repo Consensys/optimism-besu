@@ -27,6 +27,8 @@ import org.hyperledger.besu.ethereum.core.BlockHeader;
 import org.hyperledger.besu.ethereum.core.LogWithMetadata;
 import org.hyperledger.besu.ethereum.core.Transaction;
 import org.hyperledger.besu.ethereum.core.TransactionReceipt;
+import org.hyperledger.besu.ethereum.core.encoding.receipt.TransactionReceiptEncoder;
+import org.hyperledger.besu.ethereum.core.encoding.receipt.TransactionReceiptEncodingConfiguration;
 import org.hyperledger.besu.ethereum.mainnet.ProtocolSchedule;
 import org.hyperledger.besu.ethereum.rlp.BytesValueRLPOutput;
 
@@ -35,6 +37,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import graphql.schema.DataFetchingEnvironment;
 import org.apache.tuweni.bytes.Bytes;
@@ -65,6 +68,25 @@ public class TransactionAdapter extends AdapterBase {
     this.transactionWithMetadata = transactionWithMetadata;
   }
 
+  /**
+   * Constructs a new TransactionAdapter object with receipt.
+   *
+   * @param transactionWithMetadata the TransactionWithMetadata object to adapt.
+   * @param transactionReceiptWithMetadata the TransactionReceiptWithMetadata object to adapt.
+   */
+  public TransactionAdapter(
+      final @Nonnull TransactionWithMetadata transactionWithMetadata,
+      final @Nullable TransactionReceiptWithMetadata transactionReceiptWithMetadata) {
+    this.transactionWithMetadata = transactionWithMetadata;
+    this.transactionReceiptWithMetadata = Optional.ofNullable(transactionReceiptWithMetadata);
+  }
+
+  /**
+   * Reurns the receipt of the transaction.
+   *
+   * @param environment the data fetching environment.
+   * @return the receipt of the transaction.
+   */
   private Optional<TransactionReceiptWithMetadata> getReceipt(
       final DataFetchingEnvironment environment) {
     if (transactionReceiptWithMetadata == null) {
@@ -547,7 +569,8 @@ public class TransactionAdapter extends AdapterBase {
         .map(
             receipt -> {
               final BytesValueRLPOutput rlpOutput = new BytesValueRLPOutput();
-              receipt.getReceipt().writeToForNetwork(rlpOutput);
+              TransactionReceiptEncoder.writeTo(
+                  receipt.getReceipt(), rlpOutput, TransactionReceiptEncodingConfiguration.NETWORK);
               return rlpOutput.encoded();
             });
   }
