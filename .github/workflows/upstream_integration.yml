@@ -1,4 +1,5 @@
-name: Cherry-pick new commits from upstream
+# this job will cherry-pick commits from upstream besu/main into the upstream_integration branch nightly
+name: upstream_integration 
 
 on:
   schedule:
