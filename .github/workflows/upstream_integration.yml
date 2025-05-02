@@ -1,0 +1,88 @@
+name: Cherry-pick new commits from upstream
+
+on:
+  schedule:
+    - cron: '0 2 * * *'  # Nightly
+  workflow_dispatch:
+
+jobs:
+  cherry-pick:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout your repo
+      uses: actions/checkout@v4
+      with:
+        persist-credentials: false
+        fetch-depth: 0
+
+    - name: Generate GitHub App token
+      id: app-token
+      uses: tibdex/github-app-token@v1
+      with:
+        app_id: ${{ secrets.APP_ID }}
+        private_key: ${{ secrets.APP_PRIVATE_KEY }}
+
+    - name: Set up Git config
+      run: |
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+    - name: Add upstream remote and fetch
+      run: |
+        git remote add upstream https://github.com/hyperledger/besu.git
+        git fetch upstream
+
+    - name: Checkout or create upstream_integration
+      run: |
+        git checkout origin/upstream_integration 2>/dev/null || git checkout --orphan upstream_integration
+        git checkout -B upstream_integration
+
+    - name: Read last cherry-picked SHA
+      id: lastsha
+      run: |
+        SHA_FILE=".github/last_upstream_sha"
+
+        if [ ! -f "$SHA_FILE" ]; then
+          echo "❌ Error: $SHA_FILE not found."
+          exit 1
+        fi
+
+        LAST_SHA=$(cat "$SHA_FILE" | tr -d '\n')
+
+        if [ -z "$LAST_SHA" ]; then
+          echo "❌ Error: $SHA_FILE is empty."
+          exit 1
+        fi
+
+        if ! [[ "$LAST_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+          echo "❌ Error: $SHA_FILE does not contain a valid Git SHA."
+          echo "Found: '$LAST_SHA'"
+          exit 1
+        fi
+
+        echo "✅ Found last upstream SHA: $LAST_SHA"
+        echo "last_sha=$LAST_SHA" >> $GITHUB_OUTPUT
+
+    - name: Find commits to cherry-pick
+      id: commits
+      run: |
+        TO_PICK=$(git rev-list --reverse --no-merges upstream/main ^${{ steps.lastsha.outputs.last_sha }})
+        echo "commits=$TO_PICK" >> $GITHUB_OUTPUT
+
+    - name: Cherry-pick new commits
+      if: steps.commits.outputs.commits != ''
+      run: |
+        for sha in ${{ steps.commits.outputs.commits }}; do
+          echo "Cherry-picking $sha"
+          git cherry-pick $sha || exit 1
+        done
+
+    - name: Update last cherry-picked SHA
+      if: steps.commits.outputs.commits != ''
+      run: |
+        echo "${{ steps.commits.outputs.commits }}" | tail -n 1 > .github/last_upstream_sha
+        git add .github/last_upstream_sha
+        git commit -m "Update last_upstream_sha"
+        git push origin upstream_integration
+
