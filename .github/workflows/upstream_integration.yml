@@ -29,7 +29,7 @@ jobs:
         app_id: ${{ secrets.UPSTREAM_INTEGRATION_APP_ID }}
         private_key: ${{ secrets.UPSTREAM_INTEGRATION_APP_PRIVATE_KEY }}
 
-    - name: Set mock token for local act runs
+    - name: Set mock token for local act test runs
       if: ${{ env.ACT == 'true' }}
       id: app-token
       run: echo "token=${MOCK_GITHUB_TOKEN}" >> $GITHUB_OUTPUT
@@ -41,39 +41,62 @@ jobs:
 
     - name: Checkout or create upstream_integration branch
       run: |
-        git checkout origin/upstream_integration 2>/dev/null || git checkout --orphan upstream_integration
-        git checkout -B upstream_integration
+        BRANCH="upstream_integration"
+
+        if git show-ref --quiet refs/heads/$BRANCH; then
+          git checkout $BRANCH
+        elif git ls-remote --exit-code --heads origin $BRANCH; then
+          git fetch origin $BRANCH
+          git checkout -b $BRANCH origin/$BRANCH
+        else
+          git checkout --orphan $BRANCH
+          git reset --hard
+        fi
 
     - name: Read last cherry-picked SHA
       id: lastsha
       run: |
         SHA_FILE=".github/last_upstream_sha"
+        INITIAL_SHA="442e8f366950dea8624ea757b91fbacec11d604c"
 
-        if [ ! -f "$SHA_FILE" ]; then
-          echo "❌ Error: $SHA_FILE not found."
-          exit 1
+        if [ -f "$SHA_FILE" ]; then
+          LAST_SHA=$(cat "$SHA_FILE" | tr -d '\n')
+
+          if [ -z "$LAST_SHA" ]; then
+            echo "⚠️ SHA file is empty; falling back to default."
+            LAST_SHA="$INITIAL_SHA"
+          elif ! [[ "$LAST_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "⚠️ SHA file contains invalid value: $LAST_SHA; using default."
+            LAST_SHA="$INITIAL_SHA"
+          fi
+        else
+          echo "ℹ️ SHA file not found; using default."
+          LAST_SHA="$INITIAL_SHA"
         fi
 
-        LAST_SHA=$(cat "$SHA_FILE" | tr -d '\n')
-
-        if [ -z "$LAST_SHA" ]; then
-          echo "❌ Error: $SHA_FILE is empty."
-          exit 1
-        fi
-
-        if ! [[ "$LAST_SHA" =~ ^[0-9a-f]{40}$ ]]; then
-          echo "❌ Error: $SHA_FILE does not contain a valid Git SHA."
-          echo "Found: '$LAST_SHA'"
-          exit 1
-        fi
-
-        echo "✅ Found last upstream SHA: $LAST_SHA"
+        echo "Using last upstream SHA: $LAST_SHA"
         echo "last_sha=$LAST_SHA" >> $GITHUB_OUTPUT
 
     - name: Find commits to cherry-pick
       id: commits
       run: |
-        TO_PICK=$(git rev-list --reverse --no-merges upstream/main ^${{ steps.lastsha.outputs.last_sha }})
+        # Get upstream commits since last SHA (still needed)
+        CANDIDATES=$(git rev-list --reverse --no-merges upstream/main ^${{ steps.lastsha.outputs.last_sha }})
+
+        # Build a set of cherry-picked SHAs already present in integration branch
+        PICKED=$(git log upstream_integration --grep='^cherry picked from commit ' --format='%b' \
+          | grep -oE '[0-9a-f]{40}' | sort -u)
+
+        # Filter out duplicates
+        TO_PICK=""
+        for sha in $CANDIDATES; do
+          if echo "$PICKED" | grep -q "^$sha$"; then
+            echo "🔁 Skipping already cherry-picked commit: $sha"
+          else
+            TO_PICK="$TO_PICK $sha"
+          fi
+        done
+
         echo "commits=$TO_PICK" >> $GITHUB_OUTPUT
 
     - name: Cherry-pick new commits
@@ -81,7 +104,7 @@ jobs:
       run: |
         for sha in ${{ steps.commits.outputs.commits }}; do
           echo "Cherry-picking $sha"
-          git cherry-pick $sha || exit 1
+          git cherry-pick -x $sha || exit 1
         done
 
     - name: Update last cherry-picked SHA
