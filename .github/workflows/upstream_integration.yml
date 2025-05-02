@@ -16,24 +16,30 @@ jobs:
         persist-credentials: false
         fetch-depth: 0
 
-    - name: Generate GitHub App token
-      id: app-token
-      uses: tibdex/github-app-token@v1
-      with:
-        app_id: ${{ secrets.APP_ID }}
-        private_key: ${{ secrets.APP_PRIVATE_KEY }}
-
     - name: Set up Git config
       run: |
         git config --global user.name "github-actions[bot]"
         git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+    - name: Generate GitHub App token (real GitHub only)
+      if: ${{ env.ACT != 'true' }}
+      id: app-token
+      uses: tibdex/github-app-token@v1
+      with:
+        app_id: ${{ secrets.UPSTREAM_INTEGRATION_APP_ID }}
+        private_key: ${{ secrets.UPSTREAM_INTEGRATION_APP_PRIVATE_KEY }}
+
+    - name: Set mock token for local act runs
+      if: ${{ env.ACT == 'true' }}
+      id: app-token
+      run: echo "token=${MOCK_GITHUB_TOKEN}" >> $GITHUB_OUTPUT
 
     - name: Add upstream remote and fetch
       run: |
         git remote add upstream https://github.com/hyperledger/besu.git
         git fetch upstream
 
-    - name: Checkout or create upstream_integration
+    - name: Checkout or create upstream_integration branch
       run: |
         git checkout origin/upstream_integration 2>/dev/null || git checkout --orphan upstream_integration
         git checkout -B upstream_integration
