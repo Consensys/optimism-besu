@@ -16,10 +16,11 @@ jobs:
         persist-credentials: false
         fetch-depth: 0
 
-    - name: Set up Git config
+    - name: Set up Git credentials
       run: |
         git config --global user.name "github-actions[bot]"
         git config --global user.email "github-actions[bot]@users.noreply.github.com"
+        git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
 
     - name: Generate GitHub App token (real GitHub only)
       if: ${{ env.ACT != 'true' }}
@@ -85,7 +86,7 @@ jobs:
         # Filter out duplicates
         TO_PICK=""
         for sha in $CANDIDATES; do
-          if echo "$PICKED" | grep -q "^$sha$"; then
+        if [ -n "$PICKED" ] && echo "$PICKED" | grep -q "^$sha$"; then
             echo "🔁 Skipping already cherry-picked commit: $sha"
           else
             TO_PICK="$TO_PICK $sha"
@@ -95,7 +96,7 @@ jobs:
         echo "commits=$TO_PICK" >> $GITHUB_OUTPUT
 
     - name: Cherry-pick new commits
-      if: steps.commits.outputs.commits != ''
+      if: ${{ steps.commits.outputs.commits && steps.commits.outputs.commits != '' }}
       run: |
         for sha in ${{ steps.commits.outputs.commits }}; do
           echo "Cherry-picking $sha"
@@ -105,7 +106,7 @@ jobs:
     - name: Update last cherry-picked SHA
       if: steps.commits.outputs.commits != ''
       run: |
-        echo "${{ steps.commits.outputs.commits }}" | tail -n 1 > .github/last_upstream_sha
+        echo "${{ steps.commits.outputs.commits }}" | tr ' ' '\n' | tail -n 1 > .github/last_upstream_sha
         git add .github/last_upstream_sha
         git commit -m "Update last_upstream_sha"
         git push origin upstream_integration
