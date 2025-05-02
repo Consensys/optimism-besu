@@ -29,11 +29,6 @@ jobs:
         app_id: ${{ secrets.UPSTREAM_INTEGRATION_APP_ID }}
         private_key: ${{ secrets.UPSTREAM_INTEGRATION_APP_PRIVATE_KEY }}
 
-    - name: Set mock token for local act test runs
-      if: ${{ env.ACT == 'true' }}
-      id: app-token
-      run: echo "token=${MOCK_GITHUB_TOKEN}" >> $GITHUB_OUTPUT
-
     - name: Add upstream remote and fetch
       run: |
         git remote add upstream https://github.com/hyperledger/besu.git
