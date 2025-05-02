@@ -79,14 +79,16 @@ jobs:
         # Get upstream commits since last SHA (still needed)
         CANDIDATES=$(git rev-list --reverse --no-merges upstream/main ^${{ steps.lastsha.outputs.last_sha }})
 
-        # Build a set of cherry-picked SHAs already present in integration branch
-        PICKED=$(git log upstream_integration --grep='^cherry picked from commit ' --format='%b' \
-          | grep -oE '[0-9a-f]{40}' | sort -u)
+        # Extract previously cherry-picked SHAs from commit messages
+        PICKED=$(git log upstream_integration --format='%b' \
+          | grep -oE 'cherry picked from commit ([0-9a-f]{40})' \
+          | grep -oE '[0-9a-f]{40}' \
+          | sort -u)
 
         # Filter out duplicates
         TO_PICK=""
         for sha in $CANDIDATES; do
-        if [ -n "$PICKED" ] && echo "$PICKED" | grep -q "^$sha$"; then
+          if [ -n "$PICKED" ] && echo "$PICKED" | grep -q "^$sha$"; then
             echo "🔁 Skipping already cherry-picked commit: $sha"
           else
             TO_PICK="$TO_PICK $sha"
