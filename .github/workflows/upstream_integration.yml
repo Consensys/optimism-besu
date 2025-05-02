@@ -102,6 +102,12 @@ jobs:
           echo "Cherry-picking $sha"
           git cherry-pick -x $sha || exit 1
         done
+        
+    - name: Remove workflow files from commit (if present)
+      run: |
+        git reset .github/workflows || true
+        git restore --staged .github/workflows || true
+        git restore .github/workflows || true
 
     - name: Update last cherry-picked SHA
       if: steps.commits.outputs.commits != ''
