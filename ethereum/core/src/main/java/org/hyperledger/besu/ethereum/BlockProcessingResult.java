@@ -17,7 +17,6 @@ package org.hyperledger.besu.ethereum;
 import org.hyperledger.besu.ethereum.core.Request;
 import org.hyperledger.besu.ethereum.core.TransactionReceipt;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -26,7 +25,7 @@ public class BlockProcessingResult extends BlockValidationResult {
 
   private final Optional<BlockProcessingOutputs> yield;
   private final boolean isPartial;
-  private Optional<Integer> nbParallelizedTransations = Optional.empty();
+  private Optional<Integer> nbParallelizedTransactions = Optional.empty();
 
   /** A result indicating that processing failed. */
   public static final BlockProcessingResult FAILED = new BlockProcessingResult("processing failed");
@@ -37,23 +36,21 @@ public class BlockProcessingResult extends BlockValidationResult {
    * @param yield the outputs of processing a block
    */
   public BlockProcessingResult(final Optional<BlockProcessingOutputs> yield) {
-    this.yield = yield;
-    this.isPartial = false;
+    this(yield, false);
   }
 
   /**
    * A result indicating that processing was successful but incomplete.
    *
    * @param yield the outputs of processing a block
-   * @param nbParallelizedTransations potential number of parallelized transactions during block
+   * @param nbParallelizedTransactions potential number of parallelized transactions during block
    *     processing
    */
   public BlockProcessingResult(
       final Optional<BlockProcessingOutputs> yield,
-      final Optional<Integer> nbParallelizedTransations) {
-    this.yield = yield;
-    this.isPartial = false;
-    this.nbParallelizedTransations = nbParallelizedTransations;
+      final Optional<Integer> nbParallelizedTransactions) {
+    this(yield, false);
+    this.nbParallelizedTransactions = nbParallelizedTransactions;
   }
 
   /**
@@ -76,9 +73,7 @@ public class BlockProcessingResult extends BlockValidationResult {
    */
   public BlockProcessingResult(
       final Optional<BlockProcessingOutputs> yield, final String errorMessage) {
-    super(errorMessage);
-    this.yield = yield;
-    this.isPartial = false;
+    this(yield, errorMessage, false);
   }
 
   /**
@@ -145,11 +140,7 @@ public class BlockProcessingResult extends BlockValidationResult {
    * @return the transaction receipts of the result
    */
   public List<TransactionReceipt> getReceipts() {
-    if (yield.isEmpty()) {
-      return new ArrayList<>();
-    } else {
-      return yield.get().getReceipts();
-    }
+    return yield.map(BlockProcessingOutputs::getReceipts).orElse(List.of());
   }
 
   /**
@@ -166,7 +157,7 @@ public class BlockProcessingResult extends BlockValidationResult {
    *
    * @return Optional of parallelized transactions during the block execution
    */
-  public Optional<Integer> getNbParallelizedTransations() {
-    return nbParallelizedTransations;
+  public Optional<Integer> getNbParallelizedTransactions() {
+    return nbParallelizedTransactions;
   }
 }

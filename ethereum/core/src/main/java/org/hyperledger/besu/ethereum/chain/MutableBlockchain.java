@@ -38,6 +38,18 @@ public interface MutableBlockchain extends Blockchain {
   void appendBlock(Block block, List<TransactionReceipt> receipts);
 
   /**
+   * Adds a block to the blockchain without indexing transactions.
+   *
+   * <p>Block must be connected to the existing blockchain (its parent must already be stored),
+   * otherwise an {@link IllegalArgumentException} is thrown. Blocks representing forks are allowed
+   * as long as they are connected.
+   *
+   * @param block The block to append.
+   * @param receipts The list of receipts associated with this block's transactions.
+   */
+  void appendBlockWithoutIndexingTransactions(Block block, List<TransactionReceipt> receipts);
+
+  /**
    * Adds a block to the blockchain, without updating the chain state.
    *
    * <p>Block must be connected to the existing blockchain (its parent must already be stored),
@@ -48,6 +60,13 @@ public interface MutableBlockchain extends Blockchain {
    * @param receipts The list of receipts associated with this block's transactions.
    */
   void storeBlock(Block block, List<TransactionReceipt> receipts);
+
+  /**
+   * Store a block header to the blockchain, updating the chain state.
+   *
+   * @param blockHeader The block header to store.
+   */
+  void unsafeStoreHeader(BlockHeader blockHeader, Difficulty totalDifficulty);
 
   void unsafeImportBlock(
       final Block block,

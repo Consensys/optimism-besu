@@ -44,6 +44,11 @@ public class ApiConfigurationOptions {
   private final Double apiGasPricePercentile = 50.0;
 
   @CommandLine.Option(
+      names = {"--estimate-gas-tolerance-ratio"},
+      description = "Decimal ratio for eth_estimateGas tolerance (default: ${DEFAULT-VALUE})")
+  private final Double estimateGasToleranceRatio = 0.015;
+
+  @CommandLine.Option(
       names = {"--api-gas-price-max"},
       description = "Maximum gas price for eth_gasPrice (default: ${DEFAULT-VALUE})")
   private final Long apiGasPriceMax = 500_000_000_000L;
@@ -81,7 +86,7 @@ public class ApiConfigurationOptions {
       names = {"--rpc-gas-cap"},
       description =
           "Specifies the gasLimit cap for transaction simulation RPC methods. Must be >=0. 0 specifies no limit  (default: ${DEFAULT-VALUE})")
-  private final Long rpcGasCap = 0L;
+  private final Long rpcGasCap = ApiConfiguration.DEFAULT_GAS_CAP;
 
   @CommandLine.Option(
       names = {"--rpc-max-trace-filter-range"},
@@ -128,6 +133,7 @@ public class ApiConfigurationOptions {
             .gasPriceBlocks(apiGasPriceBlocks)
             .gasPricePercentile(apiGasPricePercentile)
             .gasPriceMax(Wei.of(apiGasPriceMax))
+            .estimateGasToleranceRatio(estimateGasToleranceRatio)
             .maxLogsRange(rpcMaxLogsRange)
             .gasCap(rpcGasCap)
             .isGasAndPriorityFeeLimitingEnabled(apiGasAndPriorityFeeLimitingEnabled)

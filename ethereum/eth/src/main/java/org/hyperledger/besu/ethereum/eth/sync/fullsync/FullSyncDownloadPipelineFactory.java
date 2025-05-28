@@ -67,7 +67,8 @@ public class FullSyncDownloadPipelineFactory implements DownloadPipelineFactory 
     this.ethContext = ethContext;
     this.metricsSystem = metricsSystem;
     this.fullSyncTerminationCondition = syncTerminationCondition;
-    betterSyncTargetEvaluator = new BetterSyncTargetEvaluator(syncConfig, ethContext.getEthPeers());
+    this.betterSyncTargetEvaluator =
+        new BetterSyncTargetEvaluator(syncConfig, ethContext.getEthPeers());
   }
 
   @Override
@@ -80,7 +81,8 @@ public class FullSyncDownloadPipelineFactory implements DownloadPipelineFactory 
   }
 
   @Override
-  public Pipeline<?> createDownloadPipelineForSyncTarget(final SyncTarget target) {
+  public Pipeline<?> createDownloadPipelineForSyncTarget(
+      final SyncState syncState, final SyncTarget target) {
     final int downloaderParallelism = syncConfig.getDownloaderParallelism();
     final int headerRequestSize = syncConfig.getDownloaderHeaderRequestSize();
     final int singleHeaderBufferSize = headerRequestSize * downloaderParallelism;
@@ -99,12 +101,13 @@ public class FullSyncDownloadPipelineFactory implements DownloadPipelineFactory 
             protocolContext,
             ethContext,
             detachedValidationPolicy,
+            syncConfig,
             headerRequestSize,
             metricsSystem);
     final RangeHeadersValidationStep validateHeadersJoinUpStep =
         new RangeHeadersValidationStep(protocolSchedule, protocolContext, detachedValidationPolicy);
     final DownloadBodiesStep downloadBodiesStep =
-        new DownloadBodiesStep(protocolSchedule, ethContext, metricsSystem);
+        new DownloadBodiesStep(protocolSchedule, ethContext, syncConfig, metricsSystem);
     final ExtractTxSignaturesStep extractTxSignaturesStep = new ExtractTxSignaturesStep();
     final FullImportBlockStep importBlockStep =
         new FullImportBlockStep(

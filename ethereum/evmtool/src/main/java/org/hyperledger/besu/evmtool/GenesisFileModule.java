@@ -16,7 +16,7 @@ package org.hyperledger.besu.evmtool;
 
 import org.hyperledger.besu.cli.config.EthNetworkConfig;
 import org.hyperledger.besu.cli.config.NetworkName;
-import org.hyperledger.besu.config.GenesisConfigFile;
+import org.hyperledger.besu.config.GenesisConfig;
 import org.hyperledger.besu.config.GenesisConfigOptions;
 import org.hyperledger.besu.datatypes.HardforkId.MainnetHardforkId;
 import org.hyperledger.besu.ethereum.chain.GenesisState;
@@ -64,14 +64,14 @@ public class GenesisFileModule {
 
   @Singleton
   @Provides
-  GenesisConfigFile providesGenesisConfigFile() {
-    return GenesisConfigFile.fromConfig(genesisConfig);
+  GenesisConfig providesGenesisConfig() {
+    return GenesisConfig.fromConfig(genesisConfig);
   }
 
   @Singleton
   @Provides
-  GenesisConfigOptions provideGenesisConfigOptions(final GenesisConfigFile genesisConfigFile) {
-    return genesisConfigFile.getConfigOptions();
+  GenesisConfigOptions provideGenesisConfigOptions(final GenesisConfig genesisConfig) {
+    return genesisConfig.getConfigOptions();
   }
 
   @Singleton
@@ -88,8 +88,8 @@ public class GenesisFileModule {
   @Singleton
   @Provides
   GenesisState provideGenesisState(
-      final GenesisConfigFile genesisConfigFile, final ProtocolSchedule protocolSchedule) {
-    return GenesisState.fromConfig(genesisConfigFile, protocolSchedule);
+      final GenesisConfig genesisConfig, final ProtocolSchedule protocolSchedule) {
+    return GenesisState.fromConfig(genesisConfig, protocolSchedule);
   }
 
   @Singleton
@@ -116,6 +116,9 @@ public class GenesisFileModule {
   static GenesisFileModule createGenesisModule() {
     final JsonObject genesis = new JsonObject();
     final JsonObject config = new JsonObject();
+    config.put("depositContractAddress", "0x00000000219ab540356cbb839cbe05303d7705fa");
+    config.put("withdrawalRequestContractAddress", "0x00000961ef480eb55e80d19ad83579a64c007002");
+    config.put("consolidationRequestContractAddress", "0x0000bbddc7ce488642fb579f8b00f3a590007251");
     genesis.put("config", config);
     config.put("chainId", 1337);
     config.put(MainnetHardforkId.mostRecent().toString().toLowerCase(Locale.ROOT) + "Time", 0);
@@ -124,13 +127,14 @@ public class GenesisFileModule {
     genesis.put("difficulty", "0x0");
     genesis.put("mixHash", "0x0000000000000000000000000000000000000000000000000000000000000000");
     genesis.put("coinbase", "0x0000000000000000000000000000000000000000");
+
     return createGenesisModule(genesis.toString());
   }
 
   private static GenesisFileModule createGenesisModule(final String genesisConfig) {
     final JsonObject genesis = new JsonObject(genesisConfig);
     final JsonObject config = genesis.getJsonObject("config");
-    if (config.containsKey("clique") || config.containsKey("qbft")) {
+    if (config.containsKey("ibft") || config.containsKey("clique") || config.containsKey("qbft")) {
       throw new RuntimeException("Only Ethash and Merge configs accepted as genesis files");
     }
     return new MainnetGenesisFileModule(genesisConfig);

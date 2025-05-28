@@ -26,6 +26,8 @@ import org.hyperledger.besu.ethereum.core.Withdrawal;
 import org.hyperledger.besu.ethereum.core.encoding.EncodingContext;
 import org.hyperledger.besu.ethereum.core.encoding.TransactionEncoder;
 import org.hyperledger.besu.ethereum.core.encoding.WithdrawalEncoder;
+import org.hyperledger.besu.ethereum.core.encoding.receipt.TransactionReceiptEncoder;
+import org.hyperledger.besu.ethereum.core.encoding.receipt.TransactionReceiptEncodingConfiguration;
 import org.hyperledger.besu.ethereum.rlp.RLP;
 import org.hyperledger.besu.ethereum.trie.MerkleTrie;
 import org.hyperledger.besu.ethereum.trie.patricia.SimpleMerklePatriciaTrie;
@@ -92,20 +94,18 @@ public final class BodyValidation {
   /**
    * Generates the requests hash for a list of requests
    *
-   * @param requests list of request
+   * @param requests list of request (must be sorted by request type ascending)
    * @return the requests hash
    */
   public static Hash requestsHash(final List<Request> requests) {
     List<Bytes> requestHashes = new ArrayList<>();
-    IntStream.range(0, requests.size())
-        .forEach(
-            i -> {
-              final Request request = requests.get(i);
-              final Bytes requestBytes =
-                  Bytes.concatenate(
-                      Bytes.of(request.getType().getSerializedType()), request.getData());
-              requestHashes.add(sha256(requestBytes));
-            });
+    requests.forEach(
+        request -> {
+          // empty requests are excluded from the hash
+          if (!request.getData().isEmpty()) {
+            requestHashes.add(sha256(request.getEncodedRequest()));
+          }
+        });
 
     return Hash.wrap(sha256(Bytes.wrap(requestHashes)));
   }
@@ -126,7 +126,10 @@ public final class BodyValidation {
                     indexKey(i),
                     RLP.encode(
                         rlpOutput ->
-                            receipts.get(i).writeToForReceiptTrie(rlpOutput, false, false))));
+                            TransactionReceiptEncoder.writeTo(
+                                receipts.get(i),
+                                rlpOutput,
+                                TransactionReceiptEncodingConfiguration.TRIE_ROOT))));
 
     return Hash.wrap(trie.getRootHash());
   }

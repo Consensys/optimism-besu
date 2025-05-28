@@ -63,7 +63,7 @@ public abstract class BenchmarkExecutor {
           .code(CodeV0.EMPTY_CODE)
           .completer(__ -> {})
           .address(Address.ZERO)
-          .blockHashLookup(n -> null)
+          .blockHashLookup((__, ___) -> null)
           .blockValues(new SimpleBlockValues())
           .gasPrice(Wei.ZERO)
           .miningBeneficiary(Address.ZERO)
@@ -96,7 +96,7 @@ public abstract class BenchmarkExecutor {
    * @return the mean number of seconds each timed iteration took.
    */
   protected double runPrecompileBenchmark(final Bytes arg, final PrecompiledContract contract) {
-    if (contract.computePrecompile(arg, fakeFrame).getOutput() == null) {
+    if (contract.computePrecompile(arg, fakeFrame).output() == null) {
       throw new RuntimeException("Input is Invalid");
     }
 

@@ -39,6 +39,8 @@ public class SnapSyncConfiguration {
   public static final Boolean DEFAULT_SNAP_SERVER_ENABLED = Boolean.FALSE;
 
   public static final Boolean DEFAULT_SNAP_SYNC_BFT_ENABLED = Boolean.FALSE;
+  public static final Boolean DEFAULT_SNAP_SYNC_TRANSACTION_INDEXING_ENABLED = Boolean.TRUE;
+  public static final Boolean DEFAULT_SNAP_SYNC_SAVE_PRE_MERGE_HEADERS_ONLY_ENABLED = Boolean.FALSE;
 
   public static SnapSyncConfiguration getDefault() {
     return ImmutableSnapSyncConfiguration.builder().build();
@@ -85,7 +87,7 @@ public class SnapSyncConfiguration {
   }
 
   @Value.Default
-  public Boolean isSnapSyncBftEnabled() {
-    return DEFAULT_SNAP_SYNC_BFT_ENABLED;
+  public Boolean isSnapSyncTransactionIndexingEnabled() {
+    return DEFAULT_SNAP_SYNC_TRANSACTION_INDEXING_ENABLED;
   }
 }

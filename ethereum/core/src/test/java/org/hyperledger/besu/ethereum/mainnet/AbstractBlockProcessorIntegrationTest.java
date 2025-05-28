@@ -17,7 +17,7 @@ package org.hyperledger.besu.ethereum.mainnet;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import org.hyperledger.besu.config.GenesisConfigFile;
+import org.hyperledger.besu.config.GenesisConfig;
 import org.hyperledger.besu.crypto.KeyPair;
 import org.hyperledger.besu.crypto.SECPPrivateKey;
 import org.hyperledger.besu.crypto.SignatureAlgorithm;
@@ -27,6 +27,7 @@ import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.datatypes.TransactionType;
 import org.hyperledger.besu.datatypes.Wei;
 import org.hyperledger.besu.ethereum.BlockProcessingResult;
+import org.hyperledger.besu.ethereum.ProtocolContext;
 import org.hyperledger.besu.ethereum.chain.DefaultBlockchain;
 import org.hyperledger.besu.ethereum.core.Block;
 import org.hyperledger.besu.ethereum.core.BlockBody;
@@ -35,8 +36,10 @@ import org.hyperledger.besu.ethereum.core.BlockHeaderTestFixture;
 import org.hyperledger.besu.ethereum.core.ExecutionContextTestFixture;
 import org.hyperledger.besu.ethereum.core.MutableWorldState;
 import org.hyperledger.besu.ethereum.core.Transaction;
+import org.hyperledger.besu.ethereum.mainnet.AbstractBlockProcessor.TransactionReceiptFactory;
 import org.hyperledger.besu.ethereum.mainnet.parallelization.MainnetParallelBlockProcessor;
-import org.hyperledger.besu.ethereum.trie.diffbased.bonsai.BonsaiAccount;
+import org.hyperledger.besu.ethereum.mainnet.parallelization.ParallelTransactionPreprocessing;
+import org.hyperledger.besu.ethereum.trie.pathbased.bonsai.BonsaiAccount;
 import org.hyperledger.besu.ethereum.worldstate.WorldStateArchive;
 import org.hyperledger.besu.metrics.noop.NoOpMetricsSystem;
 import org.hyperledger.besu.plugin.services.storage.DataStorageFormat;
@@ -52,6 +55,7 @@ import org.apache.tuweni.bytes.Bytes;
 import org.apache.tuweni.bytes.Bytes32;
 import org.apache.tuweni.units.bigints.UInt256;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -79,6 +83,7 @@ class AbstractBlockProcessorIntegrationTest {
   private static final KeyPair ACCOUNT_GENESIS_2_KEYPAIR =
       generateKeyPair("fc5141e75bf622179f8eedada7fab3e2e6b3e3da8eb9df4f46d84df22df7430e");
 
+  private ProtocolContext protocolContext;
   private WorldStateArchive worldStateArchive;
   private DefaultBlockchain blockchain;
   private Address coinbase;
@@ -87,20 +92,21 @@ class AbstractBlockProcessorIntegrationTest {
   public void setUp() {
     final ExecutionContextTestFixture contextTestFixture =
         ExecutionContextTestFixture.builder(
-                GenesisConfigFile.fromResource(
+                GenesisConfig.fromResource(
                     "/org/hyperledger/besu/ethereum/mainnet/genesis-bp-it.json"))
             .dataStorageFormat(DataStorageFormat.BONSAI)
             .build();
     final BlockHeader blockHeader = new BlockHeaderTestFixture().number(0L).buildHeader();
     coinbase = blockHeader.getCoinbase();
     worldStateArchive = contextTestFixture.getStateArchive();
+    protocolContext = contextTestFixture.getProtocolContext();
     blockchain = (DefaultBlockchain) contextTestFixture.getBlockchain();
   }
 
   private static Stream<Arguments> blockProcessorProvider() {
     final ExecutionContextTestFixture contextTestFixture =
         ExecutionContextTestFixture.builder(
-                GenesisConfigFile.fromResource(
+                GenesisConfig.fromResource(
                     "/org/hyperledger/besu/ethereum/mainnet/genesis-bp-it.json"))
             .dataStorageFormat(DataStorageFormat.BONSAI)
             .build();
@@ -207,6 +213,65 @@ class AbstractBlockProcessorIntegrationTest {
     processAccountUpdateThenReadTxWithTwoAccounts(blockProcessor);
   }
 
+  @Test
+  void testProcessBlockZeroReward() {
+    ExecutionContextTestFixture contextTestFixture =
+        ExecutionContextTestFixture.builder(
+                GenesisConfig.fromResource(
+                    "/org/hyperledger/besu/ethereum/mainnet/genesis-bp-it.json"))
+            .dataStorageFormat(DataStorageFormat.BONSAI)
+            .build();
+
+    MutableWorldState worldStateSequential = worldStateArchive.getWorldState();
+    MutableWorldState worldStateParallel = contextTestFixture.getStateArchive().getWorldState();
+
+    Transaction[] transactions = {
+      createTransferTransaction(
+          0, 1_000_000_000_000_000_000L, 300000L, 0L, 0L, ACCOUNT_2, ACCOUNT_GENESIS_1_KEYPAIR),
+      createTransferTransaction(
+          0, 2_000_000_000_000_000_000L, 300000L, 0L, 0L, ACCOUNT_3, ACCOUNT_GENESIS_2_KEYPAIR)
+    };
+
+    Block block =
+        createBlockWithTransactions(
+            "0x35e44a46c149a9e765b88f310a1376e07cefc2001bf142e147f8ce8ecb60a70d",
+            Wei.ZERO,
+            transactions);
+
+    ProtocolSchedule protocolSchedule = contextTestFixture.getProtocolSchedule();
+
+    MainnetTransactionProcessor transactionProcessor =
+        protocolSchedule.getByBlockHeader(block.getHeader()).getTransactionProcessor();
+    TransactionReceiptFactory receiptFactory =
+        protocolSchedule.getByBlockHeader(block.getHeader()).getTransactionReceiptFactory();
+
+    MainnetBlockProcessor blockProcessor =
+        new MainnetBlockProcessor(
+            transactionProcessor,
+            receiptFactory,
+            Wei.ZERO,
+            BlockHeader::getCoinbase,
+            true,
+            protocolSchedule);
+
+    BlockProcessingResult parallelResult =
+        blockProcessor.processBlock(
+            protocolContext,
+            blockchain,
+            worldStateParallel,
+            block,
+            Optional.empty(),
+            new ParallelTransactionPreprocessing(transactionProcessor, Runnable::run));
+
+    BlockProcessingResult sequentialResult =
+        blockProcessor.processBlock(protocolContext, blockchain, worldStateSequential, block);
+
+    assertTrue(sequentialResult.isSuccessful());
+    assertTrue(parallelResult.isSuccessful());
+
+    assertThat(worldStateSequential.rootHash()).isEqualTo(worldStateParallel.rootHash());
+  }
+
   private void processSimpleTransfers(final BlockProcessor blockProcessor) {
     // Create two non conflicted transactions
     Transaction transactionTransfer1 = // ACCOUNT_GENESIS_1 -> ACCOUNT_2
@@ -216,18 +281,19 @@ class AbstractBlockProcessorIntegrationTest {
         createTransferTransaction(
             0, 2_000_000_000_000_000_000L, 300000L, 5L, 7L, ACCOUNT_3, ACCOUNT_GENESIS_2_KEYPAIR);
 
-    MutableWorldState worldState = worldStateArchive.getMutable();
+    MutableWorldState worldState = worldStateArchive.getWorldState();
     BonsaiAccount senderAccount1 = (BonsaiAccount) worldState.get(transactionTransfer1.getSender());
     BonsaiAccount senderAccount2 = (BonsaiAccount) worldState.get(transactionTransfer2.getSender());
 
     Block blockWithTransactions =
         createBlockWithTransactions(
             "0x4ca6e755674a1df696e5365361a0c352422934ba3ad0a74c9e6b0b56e4f80b4c",
+            Wei.of(5),
             transactionTransfer1,
             transactionTransfer2);
 
     BlockProcessingResult blockProcessingResult =
-        blockProcessor.processBlock(blockchain, worldState, blockWithTransactions);
+        blockProcessor.processBlock(protocolContext, blockchain, worldState, blockWithTransactions);
 
     BonsaiAccount updatedSenderAccount1 =
         (BonsaiAccount) worldState.get(transactionTransfer1.getSender());
@@ -258,18 +324,19 @@ class AbstractBlockProcessorIntegrationTest {
         createTransferTransaction(
             2, 3_000_000_000_000_000_000L, 300000L, 5L, 7L, ACCOUNT_6, ACCOUNT_GENESIS_1_KEYPAIR);
 
-    MutableWorldState worldState = worldStateArchive.getMutable();
+    MutableWorldState worldState = worldStateArchive.getWorldState();
     BonsaiAccount senderAccount = (BonsaiAccount) worldState.get(transferTransaction1.getSender());
 
     Block blockWithTransactions =
         createBlockWithTransactions(
             "0x7420935ee980cb06060f119ee3ee3dcd5a96989985938a3b3ca096558ad61484",
+            Wei.of(5),
             transferTransaction1,
             transferTransaction2,
             transferTransaction3);
 
     BlockProcessingResult blockProcessingResult =
-        blockProcessor.processBlock(blockchain, worldState, blockWithTransactions);
+        blockProcessor.processBlock(protocolContext, blockchain, worldState, blockWithTransactions);
 
     BonsaiAccount updatedSenderAccount =
         (BonsaiAccount) worldState.get(transferTransaction1.getSender());
@@ -311,18 +378,19 @@ class AbstractBlockProcessorIntegrationTest {
             ACCOUNT_2,
             ACCOUNT_GENESIS_2_KEYPAIR); // ACCOUNT_GENESIS_2 -> ACCOUNT_2
 
-    MutableWorldState worldState = worldStateArchive.getMutable();
+    MutableWorldState worldState = worldStateArchive.getWorldState();
     BonsaiAccount transferTransaction1Sender =
         (BonsaiAccount) worldState.get(transferTransaction1.getSender());
 
     Block blockWithTransactions =
         createBlockWithTransactions(
             "0x5c0158e79b66c86cf5e5256390b95add0c2e6891c24e72d71b9dbea5845fea72",
+            Wei.of(5),
             transferTransaction1,
             transferTransaction2);
 
     BlockProcessingResult blockProcessingResult =
-        blockProcessor.processBlock(blockchain, worldState, blockWithTransactions);
+        blockProcessor.processBlock(protocolContext, blockchain, worldState, blockWithTransactions);
 
     BonsaiAccount updatedSenderAccount1 =
         (BonsaiAccount) worldState.get(transferTransaction1.getSender());
@@ -370,17 +438,18 @@ class AbstractBlockProcessorIntegrationTest {
             coinbase.toHexString(),
             ACCOUNT_GENESIS_2_KEYPAIR); // ACCOUNT_GENESIS_2 -> COINBASE
 
-    MutableWorldState worldState = worldStateArchive.getMutable();
+    MutableWorldState worldState = worldStateArchive.getWorldState();
     BonsaiAccount transferTransaction1Sender =
         (BonsaiAccount) worldState.get(transferTransaction1.getSender());
     Block blockWithTransactions =
         createBlockWithTransactions(
             "0xd9544f389692face27352d23494dd1446d9af025067bc11b29e0eb83e258676a",
+            Wei.of(5),
             transferTransaction1,
             transferTransaction2);
 
     BlockProcessingResult blockProcessingResult =
-        blockProcessor.processBlock(blockchain, worldState, blockWithTransactions);
+        blockProcessor.processBlock(protocolContext, blockchain, worldState, blockWithTransactions);
 
     BonsaiAccount updatedSenderAccount1 =
         (BonsaiAccount) worldState.get(transferTransaction1.getSender());
@@ -422,14 +491,15 @@ class AbstractBlockProcessorIntegrationTest {
     Block blockWithTransactions =
         createBlockWithTransactions(
             "0x51d59f64426ea986b1323aa22b9881c83f67947b4f90c2c302b21d3f8c459aff",
+            Wei.of(5),
             setSlot1Transaction,
             getSlot1Transaction,
             setSlot3Transaction,
             setSlot4Transaction);
 
-    MutableWorldState worldState = worldStateArchive.getMutable();
+    MutableWorldState worldState = worldStateArchive.getWorldState();
     BlockProcessingResult blockProcessingResult =
-        blockProcessor.processBlock(blockchain, worldState, blockWithTransactions);
+        blockProcessor.processBlock(protocolContext, blockchain, worldState, blockWithTransactions);
 
     assertTrue(blockProcessingResult.isSuccessful());
 
@@ -458,14 +528,15 @@ class AbstractBlockProcessorIntegrationTest {
     Block blockWithTransactions =
         createBlockWithTransactions(
             "0xdf21d4fef211d7a905022dc87f2a68f4bf9cb273fcf9745cfa7f7c2f258c03f3",
+            Wei.of(5),
             getSlot1Transaction,
             setSlot1Transaction,
             setSlo2Transaction,
             setSlot3Transaction);
-    MutableWorldState worldState = worldStateArchive.getMutable();
+    MutableWorldState worldState = worldStateArchive.getWorldState();
 
     BlockProcessingResult blockProcessingResult =
-        blockProcessor.processBlock(blockchain, worldState, blockWithTransactions);
+        blockProcessor.processBlock(protocolContext, blockchain, worldState, blockWithTransactions);
 
     assertTrue(blockProcessingResult.isSuccessful());
 
@@ -502,13 +573,14 @@ class AbstractBlockProcessorIntegrationTest {
     Block blockWithTransactions =
         createBlockWithTransactions(
             "0x91966cdde619acb05a1d9fef2f8801432a30edde7131f1f194002b0a766026c7",
+            Wei.of(5),
             transactionTransfer,
             getcontractBalanceTransaction,
             sendEthFromContractTransaction);
-    MutableWorldState worldState = worldStateArchive.getMutable();
+    MutableWorldState worldState = worldStateArchive.getWorldState();
 
     BlockProcessingResult blockProcessingResult =
-        blockProcessor.processBlock(blockchain, worldState, blockWithTransactions);
+        blockProcessor.processBlock(protocolContext, blockchain, worldState, blockWithTransactions);
 
     assertTrue(blockProcessingResult.isSuccessful());
 
@@ -548,13 +620,14 @@ class AbstractBlockProcessorIntegrationTest {
     Block blockWithTransactions =
         createBlockWithTransactions(
             "0x375af730c0f9e04666659fc419fda74cc0cb29936607c08adf21d3b236c6b7f6",
+            Wei.of(5),
             transactionTransfer,
             sendEthFromContractTransaction,
             getcontractBalanceTransaction);
-    MutableWorldState worldState = worldStateArchive.getMutable();
+    MutableWorldState worldState = worldStateArchive.getWorldState();
 
     BlockProcessingResult blockProcessingResult =
-        blockProcessor.processBlock(blockchain, worldState, blockWithTransactions);
+        blockProcessor.processBlock(protocolContext, blockchain, worldState, blockWithTransactions);
     assertTrue(blockProcessingResult.isSuccessful());
 
     // Verify the state
@@ -593,13 +666,14 @@ class AbstractBlockProcessorIntegrationTest {
     Block blockWithTransactions =
         createBlockWithTransactions(
             "0x3c2366a28dadbcef39ba04cde7bc30a5dccfce1e478a5c2602f5a28ab9498e6c",
+            Wei.of(5),
             transactionTransfer,
             getcontractBalanceTransaction,
             sendEthFromContractTransaction);
-    MutableWorldState worldState = worldStateArchive.getMutable();
+    MutableWorldState worldState = worldStateArchive.getWorldState();
 
     BlockProcessingResult blockProcessingResult =
-        blockProcessor.processBlock(blockchain, worldState, blockWithTransactions);
+        blockProcessor.processBlock(protocolContext, blockchain, worldState, blockWithTransactions);
 
     assertTrue(blockProcessingResult.isSuccessful());
 
@@ -639,13 +713,14 @@ class AbstractBlockProcessorIntegrationTest {
     Block blockWithTransactions =
         createBlockWithTransactions(
             "0x3c2366a28dadbcef39ba04cde7bc30a5dccfce1e478a5c2602f5a28ab9498e6c",
+            Wei.of(5),
             transactionTransfer,
             sendEthFromContractTransaction,
             getcontractBalanceTransaction);
-    MutableWorldState worldState = worldStateArchive.getMutable();
+    MutableWorldState worldState = worldStateArchive.getWorldState();
 
     BlockProcessingResult blockProcessingResult =
-        blockProcessor.processBlock(blockchain, worldState, blockWithTransactions);
+        blockProcessor.processBlock(protocolContext, blockchain, worldState, blockWithTransactions);
 
     assertTrue(blockProcessingResult.isSuccessful());
 
@@ -749,13 +824,13 @@ class AbstractBlockProcessorIntegrationTest {
   }
 
   private Block createBlockWithTransactions(
-      final String stateRoot, final Transaction... transactions) {
+      final String stateRoot, final Wei baseFeePerGas, final Transaction... transactions) {
     BlockHeader blockHeader =
         new BlockHeaderTestFixture()
             .number(1L)
             .stateRoot(Hash.fromHexString(stateRoot))
             .gasLimit(30_000_000L)
-            .baseFeePerGas(Wei.of(5))
+            .baseFeePerGas(baseFeePerGas)
             .buildHeader();
     BlockBody blockBody = new BlockBody(Arrays.asList(transactions), Collections.emptyList());
     return new Block(blockHeader, blockBody);

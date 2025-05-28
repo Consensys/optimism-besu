@@ -27,7 +27,10 @@ import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.GWei;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.datatypes.Wei;
+import org.hyperledger.besu.ethereum.ProtocolContext;
 import org.hyperledger.besu.ethereum.chain.Blockchain;
+import org.hyperledger.besu.ethereum.core.Block;
+import org.hyperledger.besu.ethereum.core.BlockBody;
 import org.hyperledger.besu.ethereum.core.BlockHeader;
 import org.hyperledger.besu.ethereum.core.BlockHeaderTestFixture;
 import org.hyperledger.besu.ethereum.core.MutableWorldState;
@@ -49,6 +52,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 abstract class AbstractBlockProcessorTest {
 
+  @Mock private ProtocolContext protocolContext;
   @Mock private MainnetTransactionProcessor transactionProcessor;
   @Mock private AbstractBlockProcessor.TransactionReceiptFactory transactionReceiptFactory;
   @Mock private ProtocolSchedule protocolSchedule;
@@ -57,11 +61,6 @@ abstract class AbstractBlockProcessorTest {
 
   final Blockchain blockchain = new ReferenceTestBlockchain();
   final MutableWorldState worldState = ReferenceTestWorldState.create(emptyMap());
-  final BlockHeader emptyBlockHeader =
-      new BlockHeaderTestFixture()
-          .transactionsRoot(Hash.EMPTY_LIST_HASH)
-          .ommersHash(Hash.EMPTY_LIST_HASH)
-          .buildHeader();
   private TestBlockProcessor blockProcessor;
 
   @BeforeEach
@@ -84,7 +83,7 @@ abstract class AbstractBlockProcessorTest {
   void withProcessorAndEmptyWithdrawals_WithdrawalsAreNotProcessed() {
     when(protocolSpec.getWithdrawalsProcessor()).thenReturn(Optional.empty());
     blockProcessor.processBlock(
-        blockchain, worldState, emptyBlockHeader, emptyList(), emptyList(), Optional.empty(), null);
+        protocolContext, blockchain, worldState, testBlockBuilder(emptyList()));
     verify(withdrawalsProcessor, never()).processWithdrawals(any(), any());
   }
 
@@ -92,7 +91,7 @@ abstract class AbstractBlockProcessorTest {
   void withNoProcessorAndEmptyWithdrawals_WithdrawalsAreNotProcessed() {
     when(protocolSpec.getWithdrawalsProcessor()).thenReturn(Optional.empty());
     blockProcessor.processBlock(
-        blockchain, worldState, emptyBlockHeader, emptyList(), emptyList(), Optional.empty(), null);
+        protocolContext, blockchain, worldState, testBlockBuilder(emptyList()));
     verify(withdrawalsProcessor, never()).processWithdrawals(any(), any());
   }
 
@@ -102,13 +101,7 @@ abstract class AbstractBlockProcessorTest {
     final List<Withdrawal> withdrawals =
         List.of(new Withdrawal(UInt64.ONE, UInt64.ONE, Address.fromHexString("0x1"), GWei.ONE));
     blockProcessor.processBlock(
-        blockchain,
-        worldState,
-        emptyBlockHeader,
-        emptyList(),
-        emptyList(),
-        Optional.of(withdrawals),
-        null);
+        protocolContext, blockchain, worldState, testBlockBuilder(withdrawals));
     verify(withdrawalsProcessor).processWithdrawals(eq(withdrawals), any());
   }
 
@@ -119,13 +112,7 @@ abstract class AbstractBlockProcessorTest {
     final List<Withdrawal> withdrawals =
         List.of(new Withdrawal(UInt64.ONE, UInt64.ONE, Address.fromHexString("0x1"), GWei.ONE));
     blockProcessor.processBlock(
-        blockchain,
-        worldState,
-        emptyBlockHeader,
-        emptyList(),
-        emptyList(),
-        Optional.of(withdrawals),
-        null);
+        protocolContext, blockchain, worldState, testBlockBuilder(withdrawals));
     verify(withdrawalsProcessor, never()).processWithdrawals(any(), any());
   }
 
@@ -155,5 +142,14 @@ abstract class AbstractBlockProcessorTest {
         final boolean skipZeroBlockRewards) {
       return false;
     }
+  }
+
+  Block testBlockBuilder(final List<Withdrawal> withdrawals) {
+    return new Block(
+        new BlockHeaderTestFixture()
+            .transactionsRoot(Hash.EMPTY_LIST_HASH)
+            .ommersHash(Hash.EMPTY_LIST_HASH)
+            .buildHeader(),
+        new BlockBody(emptyList(), emptyList(), Optional.ofNullable(withdrawals)));
   }
 }

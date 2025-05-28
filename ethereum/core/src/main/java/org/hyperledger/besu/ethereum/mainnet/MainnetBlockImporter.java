@@ -20,6 +20,7 @@ import org.hyperledger.besu.ethereum.core.Block;
 import org.hyperledger.besu.ethereum.core.BlockImporter;
 import org.hyperledger.besu.ethereum.core.TransactionReceipt;
 import org.hyperledger.besu.ethereum.mainnet.BlockImportResult.BlockImportStatus;
+import org.hyperledger.besu.ethereum.trie.pathbased.common.provider.WorldStateQueryParams;
 
 import java.util.List;
 
@@ -43,14 +44,24 @@ public class MainnetBlockImporter implements BlockImporter {
 
     final var result =
         blockValidator.validateAndProcessBlock(
-            context, block, headerValidationMode, ommerValidationMode);
+            context, block, headerValidationMode, ommerValidationMode, false);
 
     if (result.isSuccessful()) {
       result
           .getYield()
           .ifPresent(
-              processingOutputs ->
-                  context.getBlockchain().appendBlock(block, processingOutputs.getReceipts()));
+              processingOutputs -> {
+                context.getBlockchain().appendBlock(block, processingOutputs.getReceipts());
+
+                // move the head worldstate if block processing was successful:
+                context
+                    .getWorldStateArchive()
+                    .getWorldState(
+                        WorldStateQueryParams.newBuilder()
+                            .withBlockHeader(block.getHeader())
+                            .withShouldWorldStateUpdateHead(true)
+                            .build());
+              });
     }
 
     return new BlockImportResult(result.isSuccessful());
@@ -63,11 +74,16 @@ public class MainnetBlockImporter implements BlockImporter {
       final List<TransactionReceipt> receipts,
       final HeaderValidationMode headerValidationMode,
       final HeaderValidationMode ommerValidationMode,
-      final BodyValidationMode bodyValidationMode) {
+      final BodyValidationMode bodyValidationMode,
+      final boolean importWithTxIndexing) {
 
     if (blockValidator.validateBlockForSyncing(
         context, block, receipts, headerValidationMode, ommerValidationMode, bodyValidationMode)) {
-      context.getBlockchain().appendBlock(block, receipts);
+      if (importWithTxIndexing) {
+        context.getBlockchain().appendBlock(block, receipts);
+      } else {
+        context.getBlockchain().appendBlockWithoutIndexingTransactions(block, receipts);
+      }
       return new BlockImportResult(true);
     }
 

@@ -17,6 +17,7 @@ package org.hyperledger.besu.ethereum.eth.sync.fullsync;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 import static org.hyperledger.besu.ethereum.core.InMemoryKeyValueStorageProvider.createInMemoryBlockchain;
+import static org.mockito.Mockito.mock;
 
 import org.hyperledger.besu.ethereum.ProtocolContext;
 import org.hyperledger.besu.ethereum.chain.Blockchain;
@@ -35,7 +36,8 @@ import org.hyperledger.besu.ethereum.eth.manager.EthProtocolManagerTestBuilder;
 import org.hyperledger.besu.ethereum.eth.manager.EthProtocolManagerTestUtil;
 import org.hyperledger.besu.ethereum.eth.manager.EthScheduler;
 import org.hyperledger.besu.ethereum.eth.manager.RespondingEthPeer;
-import org.hyperledger.besu.ethereum.eth.messages.EthPV62;
+import org.hyperledger.besu.ethereum.eth.manager.peertask.PeerTaskExecutor;
+import org.hyperledger.besu.ethereum.eth.messages.EthProtocolMessages;
 import org.hyperledger.besu.ethereum.eth.messages.GetBlockHeadersMessage;
 import org.hyperledger.besu.ethereum.eth.sync.ChainDownloader;
 import org.hyperledger.besu.ethereum.eth.sync.SynchronizerConfiguration;
@@ -52,7 +54,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Function;
 import java.util.stream.Stream;
 
 import org.awaitility.Awaitility;
@@ -125,7 +126,8 @@ public class FullSyncChainDownloaderTest {
         syncState,
         metricsSystem,
         SyncTerminationCondition.never(),
-        SyncDurationMetrics.NO_OP_SYNC_DURATION_METRICS);
+        SyncDurationMetrics.NO_OP_SYNC_DURATION_METRICS,
+        mock(PeerTaskExecutor.class));
   }
 
   private ChainDownloader downloader() {
@@ -376,8 +378,8 @@ public class FullSyncChainDownloaderTest {
         .until(() -> bestPeer.peekNextOutgoingRequest().isPresent());
     final Optional<MessageData> maybeNextMessage = bestPeer.peekNextOutgoingRequest();
     assertThat(maybeNextMessage).isPresent();
-    final MessageData nextMessage = maybeNextMessage.get();
-    assertThat(nextMessage.getCode()).isEqualTo(EthPV62.GET_BLOCK_HEADERS);
+    final MessageData nextMessage = maybeNextMessage.get().unwrapMessageData().getValue();
+    assertThat(nextMessage.getCode()).isEqualTo(EthProtocolMessages.GET_BLOCK_HEADERS);
     final GetBlockHeadersMessage headersMessage = GetBlockHeadersMessage.readFrom(nextMessage);
     assertThat(headersMessage.skip()).isGreaterThan(0);
 
@@ -474,8 +476,8 @@ public class FullSyncChainDownloaderTest {
       final long checkpointRequestsToOtherPeers =
           otherPeers.stream()
               .map(RespondingEthPeer::streamPendingOutgoingRequests)
-              .flatMap(Function.identity())
-              .filter(m -> m.getCode() == EthPV62.GET_BLOCK_HEADERS)
+              .flatMap(s -> s.map(messageData -> messageData.unwrapMessageData().getValue()))
+              .filter(m -> m.getCode() == EthProtocolMessages.GET_BLOCK_HEADERS)
               .map(GetBlockHeadersMessage::readFrom)
               .filter(m -> m.skip() > 0)
               .count();

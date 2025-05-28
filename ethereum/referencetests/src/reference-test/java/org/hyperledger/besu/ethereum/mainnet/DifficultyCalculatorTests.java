@@ -18,7 +18,7 @@ package org.hyperledger.besu.ethereum.mainnet;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import org.hyperledger.besu.config.GenesisConfigFile;
+import org.hyperledger.besu.config.GenesisConfig;
 import org.hyperledger.besu.config.JsonUtil;
 import org.hyperledger.besu.config.StubGenesisConfigOptions;
 import org.hyperledger.besu.datatypes.Address;
@@ -53,11 +53,12 @@ public class DifficultyCalculatorTests {
     Map<String, String> postMergeOverrides = new HashMap<>();
     postMergeOverrides.put("shanghaiTime", "999999999999");
     postMergeOverrides.put("cancunTime","999999999999");
+    postMergeOverrides.put("pragueTime","999999999999");
     return Stream.of(
         Arguments.of(
             "/BasicTests/difficultyMainNetwork.json",
             MainnetProtocolSchedule.fromConfig(
-                GenesisConfigFile.mainnet()
+                GenesisConfig.mainnet()
                     .withOverrides(postMergeOverrides).getConfigOptions(),
                 EvmConfiguration.DEFAULT, MiningConfiguration.MINING_DISABLED, new BadBlockManager(), false, new NoOpMetricsSystem())),
         Arguments.of(

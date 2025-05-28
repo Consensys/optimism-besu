@@ -21,13 +21,14 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import org.hyperledger.besu.datatypes.AccountOverride;
-import org.hyperledger.besu.datatypes.AccountOverrideMap;
 import org.hyperledger.besu.datatypes.Address;
+import org.hyperledger.besu.datatypes.StateOverride;
+import org.hyperledger.besu.datatypes.StateOverrideMap;
 import org.hyperledger.besu.datatypes.Wei;
+import org.hyperledger.besu.datatypes.parameters.UnsignedLongParameter;
+import org.hyperledger.besu.ethereum.api.ImmutableApiConfiguration;
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.JsonRpcRequest;
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.JsonRpcRequestContext;
-import org.hyperledger.besu.ethereum.api.jsonrpc.internal.exception.InvalidJsonRpcParameters;
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.parameters.JsonCallParameter;
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.response.JsonRpcError;
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.response.JsonRpcErrorResponse;
@@ -51,7 +52,6 @@ import org.hyperledger.besu.evm.tracing.OperationTracer;
 import java.util.Optional;
 
 import org.apache.tuweni.bytes.Bytes;
-import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -74,6 +74,7 @@ public class EthEstimateGasTest {
   @Mock private BlockchainQueries blockchainQueries;
   @Mock private TransactionSimulator transactionSimulator;
   @Mock private WorldStateArchive worldStateArchive;
+  private static final long MIN_TX_GAS_COST = 21_000L;
 
   @BeforeEach
   public void setUp() {
@@ -84,6 +85,7 @@ public class EthEstimateGasTest {
     when(blockchainQueries.finalizedBlockHeader()).thenReturn(Optional.of(finalizedBlockHeader));
     when(blockchainQueries.getBlockHeaderByNumber(1L))
         .thenReturn(Optional.of(finalizedBlockHeader));
+    when(blockchainQueries.getMinimumTransactionCost(any())).thenReturn(MIN_TX_GAS_COST);
     when(genesisBlockHeader.getGasLimit()).thenReturn(Long.MAX_VALUE);
     when(genesisBlockHeader.getNumber()).thenReturn(0L);
     when(finalizedBlockHeader.getGasLimit()).thenReturn(Long.MAX_VALUE);
@@ -96,7 +98,9 @@ public class EthEstimateGasTest {
     when(transactionSimulator.simulatePendingBlockHeader()).thenReturn(pendingBlockHeader);
     when(worldStateArchive.isWorldStateAvailable(any(), any())).thenReturn(true);
 
-    method = new EthEstimateGas(blockchainQueries, transactionSimulator);
+    method =
+        new EthEstimateGas(
+            blockchainQueries, transactionSimulator, ImmutableApiConfiguration.builder().build());
   }
 
   @Test
@@ -105,18 +109,19 @@ public class EthEstimateGasTest {
   }
 
   @Test
-  public void noAccountOverrides() {
+  public void noStateOverrides() {
     final Wei gasPrice = Wei.of(1000);
     final JsonRpcRequestContext request =
         ethEstimateGasRequest(defaultLegacyTransactionCallParameter(gasPrice), "latest");
-    Optional<AccountOverrideMap> overrideMap = method.getAddressAccountOverrideMap(request);
+    Optional<StateOverrideMap> overrideMap = method.getAddressStateOverrideMap(request);
     assertThat(overrideMap.isPresent()).isFalse();
   }
 
   @Test
-  public void someAccountOverrides() {
-    AccountOverrideMap expectedOverrides = new AccountOverrideMap();
-    AccountOverride override = new AccountOverride.Builder().withNonce(88L).build();
+  public void someStateOverrides() {
+    StateOverrideMap expectedOverrides = new StateOverrideMap();
+    StateOverride override =
+        new StateOverride.Builder().withNonce(new UnsignedLongParameter("0x9e")).build();
     final Address address = Address.fromHexString("0xd9c9cd5f6779558b6e0ed4e6acf6b1947e7fa1f3");
     expectedOverrides.put(address, override);
 
@@ -125,9 +130,9 @@ public class EthEstimateGasTest {
         ethEstimateGasRequestWithStateOverrides(
             defaultLegacyTransactionCallParameter(gasPrice), "latest", expectedOverrides);
 
-    Optional<AccountOverrideMap> maybeOverrideMap = method.getAddressAccountOverrideMap(request);
+    Optional<StateOverrideMap> maybeOverrideMap = method.getAddressStateOverrideMap(request);
     assertThat(maybeOverrideMap.isPresent()).isTrue();
-    AccountOverrideMap overrideMap = maybeOverrideMap.get();
+    StateOverrideMap overrideMap = maybeOverrideMap.get();
     assertThat(overrideMap.keySet()).hasSize(1);
     assertThat(overrideMap.values()).hasSize(1);
 
@@ -140,7 +145,7 @@ public class EthEstimateGasTest {
     final JsonRpcRequestContext request =
         ethEstimateGasRequest(defaultLegacyTransactionCallParameter(Wei.ZERO));
     when(transactionSimulator.process(
-            eq(modifiedLegacyTransactionCallParameter(Wei.ZERO)),
+            eq(modifiedLegacyTransactionCallParameter(MIN_TX_GAS_COST, Wei.ZERO, Optional.empty())),
             eq(Optional.empty()), // no account overrides
             any(TransactionValidationParams.class),
             any(OperationTracer.class),
@@ -173,9 +178,10 @@ public class EthEstimateGasTest {
   public void shouldReturnGasEstimateWhenTransientLegacyTransactionProcessorReturnsResultSuccess() {
     final JsonRpcRequestContext request =
         ethEstimateGasRequest(defaultLegacyTransactionCallParameter(Wei.ZERO));
-    mockTransientProcessorResultGasEstimate(1L, true, false, latestBlockHeader);
+    mockTransientProcessorResultGasEstimate(MIN_TX_GAS_COST, true, false, latestBlockHeader);
 
-    final JsonRpcResponse expectedResponse = new JsonRpcSuccessResponse(null, Quantity.create(1L));
+    final JsonRpcResponse expectedResponse =
+        new JsonRpcSuccessResponse(null, Quantity.create(MIN_TX_GAS_COST));
 
     assertThat(method.response(request)).usingRecursiveComparison().isEqualTo(expectedResponse);
   }
@@ -186,30 +192,51 @@ public class EthEstimateGasTest {
     final JsonRpcRequestContext request =
         ethEstimateGasRequest(defaultLegacyTransactionCallParameter(gasPrice));
     mockTransientProcessorResultGasEstimate(
-        1L, true, gasPrice, Optional.empty(), latestBlockHeader);
+        MIN_TX_GAS_COST, true, gasPrice, Optional.empty(), latestBlockHeader);
 
-    final JsonRpcResponse expectedResponse = new JsonRpcSuccessResponse(null, Quantity.create(1L));
+    final JsonRpcResponse expectedResponse =
+        new JsonRpcSuccessResponse(null, Quantity.create(MIN_TX_GAS_COST));
 
     assertThat(method.response(request)).usingRecursiveComparison().isEqualTo(expectedResponse);
   }
 
   @Test
-  public void shouldReturnGasEstimateErrorWhenGasPricePresentForEip1559Transaction() {
+  public void shouldUseNonceParameterWhenIsPresent() {
+    final Wei gasPrice = Wei.of(1000);
+    final long nonce = 0L;
     final JsonRpcRequestContext request =
-        ethEstimateGasRequest(eip1559TransactionCallParameter(Optional.of(Wei.of(10))));
-    mockTransientProcessorResultGasEstimate(1L, false, false, latestBlockHeader);
-    Assertions.assertThatThrownBy(() -> method.response(request))
-        .isInstanceOf(InvalidJsonRpcParameters.class)
-        .hasMessageContaining("gasPrice cannot be used with maxFeePerGas or maxPriorityFeePerGas");
+        ethEstimateGasRequest(
+            eip1559TransactionCallParameter(Optional.of(gasPrice), Optional.of(nonce)));
+    getMockTransactionSimulatorResult(
+        true, MIN_TX_GAS_COST, gasPrice, Optional.empty(), latestBlockHeader, Optional.of(nonce));
+
+    final JsonRpcResponse expectedResponse =
+        new JsonRpcSuccessResponse(null, Quantity.create(MIN_TX_GAS_COST));
+    assertThat(method.response(request)).usingRecursiveComparison().isEqualTo(expectedResponse);
+  }
+
+  @Test
+  public void shouldNotErrorWhenGasPricePresentForEip1559Transaction() {
+    final Wei gasPrice = Wei.of(1000);
+    final JsonRpcRequestContext request =
+        ethEstimateGasRequest(
+            eip1559TransactionCallParameter(Optional.of(gasPrice), Optional.empty()));
+    mockTransientProcessorResultGasEstimate(
+        1L, true, gasPrice, Optional.empty(), latestBlockHeader);
+
+    final JsonRpcResponse expectedResponse =
+        new JsonRpcSuccessResponse(null, Quantity.create(MIN_TX_GAS_COST));
+    assertThat(method.response(request)).usingRecursiveComparison().isEqualTo(expectedResponse);
   }
 
   @Test
   public void
       shouldReturnGasEstimateWhenTransientEip1559TransactionProcessorReturnsResultSuccess() {
     final JsonRpcRequestContext request = ethEstimateGasRequest(eip1559TransactionCallParameter());
-    mockTransientProcessorResultGasEstimate(1L, true, false, latestBlockHeader);
+    mockTransientProcessorResultGasEstimate(MIN_TX_GAS_COST, true, false, latestBlockHeader);
 
-    final JsonRpcResponse expectedResponse = new JsonRpcSuccessResponse(null, Quantity.create(1L));
+    final JsonRpcResponse expectedResponse =
+        new JsonRpcSuccessResponse(null, Quantity.create(MIN_TX_GAS_COST));
     assertThat(method.response(request)).usingRecursiveComparison().isEqualTo(expectedResponse);
   }
 
@@ -329,14 +356,14 @@ public class EthEstimateGasTest {
             null, new JsonRpcError(RpcErrorType.REVERT_ERROR, executionRevertedReason));
 
     assertThat(((JsonRpcErrorResponse) expectedResponse).getError().getMessage())
-        .isEqualTo("Execution reverted: ERC20: transfer from the zero address");
+        .isEqualTo("Execution reverted (ERC20: transfer from the zero address)");
 
     final JsonRpcResponse actualResponse = method.response(request);
 
     assertThat(actualResponse).usingRecursiveComparison().isEqualTo(expectedResponse);
 
     assertThat(((JsonRpcErrorResponse) actualResponse).getError().getMessage())
-        .isEqualTo("Execution reverted: ERC20: transfer from the zero address");
+        .isEqualTo("Execution reverted (ERC20: transfer from the zero address)");
   }
 
   @Test
@@ -357,29 +384,31 @@ public class EthEstimateGasTest {
             null, new JsonRpcError(RpcErrorType.REVERT_ERROR, invalidRevertReason));
 
     assertThat(((JsonRpcErrorResponse) expectedResponse).getError().getMessage())
-        .isEqualTo("Execution reverted: ABI decode error");
+        .isEqualTo("Execution reverted (ABI decode error)");
 
     final JsonRpcResponse actualResponse = method.response(request);
 
     assertThat(actualResponse).usingRecursiveComparison().isEqualTo(expectedResponse);
 
     assertThat(((JsonRpcErrorResponse) actualResponse).getError().getMessage())
-        .isEqualTo("Execution reverted: ABI decode error");
+        .isEqualTo("Execution reverted (ABI decode error)");
   }
 
   @Test
   public void shouldIgnoreSenderBalanceAccountWhenStrictModeDisabled() {
     final JsonRpcRequestContext request =
         ethEstimateGasRequest(defaultLegacyTransactionCallParameter(Wei.ZERO));
-    mockTransientProcessorResultGasEstimate(1L, false, true, latestBlockHeader);
+    mockTransientProcessorResultGasEstimate(MIN_TX_GAS_COST, false, true, latestBlockHeader);
 
     method.response(request);
 
     verify(transactionSimulator)
         .process(
-            eq(modifiedLegacyTransactionCallParameter(Wei.ZERO)),
+            eq(modifiedLegacyTransactionCallParameter(Long.MAX_VALUE, Wei.ZERO, Optional.empty())),
             eq(Optional.empty()), // no account overrides
-            eq(TransactionValidationParams.transactionSimulatorAllowExceedingBalance()),
+            eq(
+                TransactionValidationParams
+                    .transactionSimulatorAllowExceedingBalanceAndFutureNonceParams),
             any(OperationTracer.class),
             eq(latestBlockHeader));
   }
@@ -388,15 +417,15 @@ public class EthEstimateGasTest {
   public void shouldNotIgnoreSenderBalanceAccountWhenStrictModeEnabled() {
     final JsonRpcRequestContext request =
         ethEstimateGasRequest(legacyTransactionCallParameter(Wei.ZERO, true));
-    mockTransientProcessorResultGasEstimate(1L, false, true, latestBlockHeader);
+    mockTransientProcessorResultGasEstimate(MIN_TX_GAS_COST, false, true, latestBlockHeader);
 
     method.response(request);
 
     verify(transactionSimulator)
         .process(
-            eq(modifiedLegacyTransactionCallParameter(Wei.ZERO)),
+            eq(modifiedLegacyTransactionCallParameter(Long.MAX_VALUE, Wei.ZERO, Optional.empty())),
             eq(Optional.empty()), // no account overrides
-            eq(TransactionValidationParams.transactionSimulator()),
+            eq(TransactionValidationParams.transactionSimulatorAllowFutureNonce()),
             any(OperationTracer.class),
             eq(latestBlockHeader));
   }
@@ -420,9 +449,10 @@ public class EthEstimateGasTest {
   public void shouldUseBlockTagParamWhenPresent() {
     final JsonRpcRequestContext request =
         ethEstimateGasRequest(eip1559TransactionCallParameter(), "finalized");
-    mockTransientProcessorResultGasEstimate(1L, true, false, finalizedBlockHeader);
+    mockTransientProcessorResultGasEstimate(MIN_TX_GAS_COST, true, false, finalizedBlockHeader);
 
-    final JsonRpcResponse expectedResponse = new JsonRpcSuccessResponse(null, Quantity.create(1L));
+    final JsonRpcResponse expectedResponse =
+        new JsonRpcSuccessResponse(null, Quantity.create(MIN_TX_GAS_COST));
 
     assertThat(method.response(request)).usingRecursiveComparison().isEqualTo(expectedResponse);
   }
@@ -431,9 +461,10 @@ public class EthEstimateGasTest {
   public void pendingBlockTagEstimateOnPendingBlock() {
     final JsonRpcRequestContext request =
         ethEstimateGasRequest(eip1559TransactionCallParameter(), "pending");
-    mockTransientProcessorResultGasEstimate(1L, true, false, pendingBlockHeader);
+    mockTransientProcessorResultGasEstimate(MIN_TX_GAS_COST, true, false, pendingBlockHeader);
 
-    final JsonRpcResponse expectedResponse = new JsonRpcSuccessResponse(null, Quantity.create(1L));
+    final JsonRpcResponse expectedResponse =
+        new JsonRpcSuccessResponse(null, Quantity.create(MIN_TX_GAS_COST));
 
     assertThat(method.response(request)).usingRecursiveComparison().isEqualTo(expectedResponse);
   }
@@ -442,9 +473,10 @@ public class EthEstimateGasTest {
   public void shouldUseBlockNumberParamWhenPresent() {
     final JsonRpcRequestContext request =
         ethEstimateGasRequest(eip1559TransactionCallParameter(), "0x0");
-    mockTransientProcessorResultGasEstimate(1L, true, false, genesisBlockHeader);
+    mockTransientProcessorResultGasEstimate(MIN_TX_GAS_COST, true, false, genesisBlockHeader);
 
-    final JsonRpcResponse expectedResponse = new JsonRpcSuccessResponse(null, Quantity.create(1L));
+    final JsonRpcResponse expectedResponse =
+        new JsonRpcSuccessResponse(null, Quantity.create(MIN_TX_GAS_COST));
 
     assertThat(method.response(request)).usingRecursiveComparison().isEqualTo(expectedResponse);
   }
@@ -454,7 +486,8 @@ public class EthEstimateGasTest {
       final String validationFailedErrorMessage,
       final BlockHeader blockHeader) {
     final TransactionSimulatorResult mockTxSimResult =
-        getMockTransactionSimulatorResult(false, 0, Wei.ZERO, Optional.empty(), blockHeader);
+        getMockTransactionSimulatorResult(
+            false, 0, Wei.ZERO, Optional.empty(), blockHeader, Optional.empty());
     when(mockTxSimResult.getValidationResult())
         .thenReturn(
             validationFailedErrorMessage == null
@@ -491,7 +524,7 @@ public class EthEstimateGasTest {
       final Optional<Bytes> revertReason,
       final BlockHeader blockHeader) {
     getMockTransactionSimulatorResult(
-        isSuccessful, estimateGas, gasPrice, revertReason, blockHeader);
+        isSuccessful, estimateGas, gasPrice, revertReason, blockHeader, Optional.empty());
   }
 
   @SuppressWarnings("ReferenceEquality")
@@ -500,11 +533,19 @@ public class EthEstimateGasTest {
       final long estimateGas,
       final Wei gasPrice,
       final Optional<Bytes> revertReason,
-      final BlockHeader blockHeader) {
+      final BlockHeader blockHeader,
+      final Optional<Long> maybeNonce) {
     final TransactionSimulatorResult mockTxSimResult = mock(TransactionSimulatorResult.class);
     if (blockHeader == pendingBlockHeader) {
       when(transactionSimulator.processOnPending(
-              eq(modifiedLegacyTransactionCallParameter(gasPrice)),
+              eq(modifiedLegacyTransactionCallParameter(MIN_TX_GAS_COST, gasPrice, maybeNonce)),
+              eq(Optional.empty()), // no account overrides
+              any(TransactionValidationParams.class),
+              any(OperationTracer.class),
+              eq(blockHeader)))
+          .thenReturn(Optional.of(mockTxSimResult));
+      when(transactionSimulator.processOnPending(
+              eq(modifiedLegacyTransactionCallParameter(Long.MAX_VALUE, gasPrice, maybeNonce)),
               eq(Optional.empty()), // no account overrides
               any(TransactionValidationParams.class),
               any(OperationTracer.class),
@@ -518,8 +559,23 @@ public class EthEstimateGasTest {
               eq(blockHeader)))
           .thenReturn(Optional.of(mockTxSimResult));
     } else {
+      // mock a call with the gasLimit = MIN_TX_COST bc we try that first
       when(transactionSimulator.process(
-              eq(modifiedLegacyTransactionCallParameter(gasPrice)),
+              eq(modifiedLegacyTransactionCallParameter(MIN_TX_GAS_COST, gasPrice, maybeNonce)),
+              eq(Optional.empty()), // no account overrides
+              any(TransactionValidationParams.class),
+              any(OperationTracer.class),
+              eq(blockHeader)))
+          .thenReturn(Optional.of(mockTxSimResult));
+      when(transactionSimulator.process(
+              eq(modifiedLegacyTransactionCallParameter(Long.MAX_VALUE, gasPrice, maybeNonce)),
+              eq(Optional.empty()), // no account overrides
+              any(TransactionValidationParams.class),
+              any(OperationTracer.class),
+              eq(blockHeader)))
+          .thenReturn(Optional.of(mockTxSimResult));
+      when(transactionSimulator.process(
+              eq(modifiedLegacyTransactionCallParameter(MIN_TX_GAS_COST, gasPrice, maybeNonce)),
               eq(Optional.empty()), // no account overrides
               any(TransactionValidationParams.class),
               any(OperationTracer.class),
@@ -527,6 +583,26 @@ public class EthEstimateGasTest {
           .thenReturn(Optional.of(mockTxSimResult));
       when(transactionSimulator.process(
               eq(modifiedEip1559TransactionCallParameter()),
+              eq(Optional.empty()), // no account overrides
+              any(TransactionValidationParams.class),
+              any(OperationTracer.class),
+              eq(blockHeader)))
+          .thenReturn(Optional.of(mockTxSimResult));
+      // for testing different combination of gasPrice params
+      when(transactionSimulator.process(
+              eq(
+                  modifiedEip1559TransactionCallParameter(
+                      MIN_TX_GAS_COST, Optional.of(gasPrice), maybeNonce)),
+              eq(Optional.empty()), // no account overrides
+              any(TransactionValidationParams.class),
+              any(OperationTracer.class),
+              eq(blockHeader)))
+          .thenReturn(Optional.of(mockTxSimResult));
+
+      when(transactionSimulator.process(
+              eq(
+                  modifiedEip1559TransactionCallParameter(
+                      Long.MAX_VALUE, Optional.of(gasPrice), maybeNonce)),
               eq(Optional.empty()), // no account overrides
               any(TransactionValidationParams.class),
               any(OperationTracer.class),
@@ -559,47 +635,58 @@ public class EthEstimateGasTest {
         .build();
   }
 
-  private CallParameter modifiedLegacyTransactionCallParameter(final Wei gasPrice) {
+  private CallParameter modifiedLegacyTransactionCallParameter(
+      final long gasLimit, final Wei gasPrice, final Optional<Long> maybeNonce) {
     return new CallParameter(
         Address.fromHexString("0x0"),
         Address.fromHexString("0x0"),
-        Long.MAX_VALUE,
+        gasLimit,
         gasPrice,
         Optional.empty(),
         Optional.empty(),
         Wei.ZERO,
         Bytes.EMPTY,
-        Optional.empty());
+        Optional.empty(),
+        maybeNonce);
   }
 
   private CallParameter eip1559TransactionCallParameter() {
-    return eip1559TransactionCallParameter(Optional.empty());
+    return eip1559TransactionCallParameter(Optional.empty(), Optional.empty());
   }
 
-  private JsonCallParameter eip1559TransactionCallParameter(final Optional<Wei> gasPrice) {
+  private JsonCallParameter eip1559TransactionCallParameter(
+      final Optional<Wei> maybeGasPrice, final Optional<Long> maybeNonce) {
     return new JsonCallParameter.JsonCallParameterBuilder()
         .withFrom(Address.fromHexString("0x0"))
         .withTo(Address.fromHexString("0x0"))
-        .withGasPrice(gasPrice.orElse(null))
+        .withGasPrice(maybeGasPrice.orElse(Wei.ZERO))
         .withMaxPriorityFeePerGas(Wei.fromHexString("0x10"))
         .withMaxFeePerGas(Wei.fromHexString("0x10"))
         .withValue(Wei.ZERO)
         .withInput(Bytes.EMPTY)
         .withStrict(false)
+        .withNonce(maybeNonce.map(UnsignedLongParameter::new).orElse(null))
         .build();
   }
 
   private CallParameter modifiedEip1559TransactionCallParameter() {
+    return modifiedEip1559TransactionCallParameter(
+        MIN_TX_GAS_COST, Optional.empty(), Optional.empty());
+  }
+
+  private CallParameter modifiedEip1559TransactionCallParameter(
+      final long gasLimit, final Optional<Wei> gasPrice, final Optional<Long> maybeNonce) {
     return new CallParameter(
         Address.fromHexString("0x0"),
         Address.fromHexString("0x0"),
-        Long.MAX_VALUE,
-        Wei.ZERO,
+        gasLimit,
+        gasPrice.orElse(Wei.ZERO),
         Optional.of(Wei.fromHexString("0x10")),
         Optional.of(Wei.fromHexString("0x10")),
         Wei.ZERO,
         Bytes.EMPTY,
-        Optional.empty());
+        Optional.empty(),
+        maybeNonce);
   }
 
   private JsonRpcRequestContext ethEstimateGasRequest(final CallParameter callParameter) {
@@ -616,7 +703,7 @@ public class EthEstimateGasTest {
   private JsonRpcRequestContext ethEstimateGasRequestWithStateOverrides(
       final CallParameter callParameter,
       final String blockParam,
-      final AccountOverrideMap overrides) {
+      final StateOverrideMap overrides) {
     return new JsonRpcRequestContext(
         new JsonRpcRequest(
             "2.0", "eth_estimateGas", new Object[] {callParameter, blockParam, overrides}));

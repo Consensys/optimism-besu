@@ -14,7 +14,7 @@
  */
 package org.hyperledger.besu.ethereum.eth.messages;
 
-import org.hyperledger.besu.config.GenesisConfigFile;
+import org.hyperledger.besu.config.GenesisConfig;
 import org.hyperledger.besu.ethereum.chain.BadBlockManager;
 import org.hyperledger.besu.ethereum.core.BlockHeader;
 import org.hyperledger.besu.ethereum.core.MiningConfiguration;
@@ -59,12 +59,13 @@ public final class BlockHeadersMessageTest {
       oneBlock.skipNext();
     }
     final MessageData initialMessage = BlockHeadersMessage.create(headers);
-    final MessageData raw = new RawMessage(EthPV62.BLOCK_HEADERS, initialMessage.getData());
+    final MessageData raw =
+        new RawMessage(EthProtocolMessages.BLOCK_HEADERS, initialMessage.getData());
     final BlockHeadersMessage message = BlockHeadersMessage.readFrom(raw);
     final List<BlockHeader> readHeaders =
         message.getHeaders(
             FixedDifficultyProtocolSchedule.create(
-                GenesisConfigFile.fromResource("/dev.json").getConfigOptions(),
+                GenesisConfig.fromResource("/dev.json").getConfigOptions(),
                 false,
                 EvmConfiguration.DEFAULT,
                 MiningConfiguration.MINING_DISABLED,

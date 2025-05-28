@@ -30,6 +30,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
+import com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,7 +38,8 @@ import org.slf4j.LoggerFactory;
 public class MessageCallProcessor extends AbstractMessageProcessor {
   private static final Logger LOG = LoggerFactory.getLogger(MessageCallProcessor.class);
 
-  private final PrecompileContractRegistry precompiles;
+  /** The precompiles. */
+  protected final PrecompileContractRegistry precompiles;
 
   /**
    * Instantiates a new Message call processor.
@@ -158,17 +160,27 @@ public class MessageCallProcessor extends AbstractMessageProcessor {
       frame.decrementRemainingGas(gasRequirement);
       final PrecompiledContract.PrecompileContractResult result =
           contract.computePrecompile(frame.getInputData(), frame);
-      operationTracer.tracePrecompileCall(frame, gasRequirement, result.getOutput());
+      operationTracer.tracePrecompileCall(frame, gasRequirement, result.output());
       if (result.isRefundGas()) {
         frame.incrementRemainingGas(gasRequirement);
       }
       if (frame.getState() == MessageFrame.State.REVERT) {
-        frame.setRevertReason(result.getOutput());
+        frame.setRevertReason(result.output());
       } else {
-        frame.setOutputData(result.getOutput());
+        frame.setOutputData(result.output());
       }
-      frame.setState(result.getState());
-      frame.setExceptionalHaltReason(result.getHaltReason());
+      frame.setState(result.state());
+      frame.setExceptionalHaltReason(result.haltReason());
     }
+  }
+
+  /**
+   * Gets the precompile addresses.
+   *
+   * @return the precompile addresses
+   */
+  @VisibleForTesting
+  public Set<Address> getPrecompileAddresses() {
+    return precompiles.getPrecompileAddresses();
   }
 }

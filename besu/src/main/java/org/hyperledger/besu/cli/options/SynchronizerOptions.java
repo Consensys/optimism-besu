@@ -14,6 +14,8 @@
  */
 package org.hyperledger.besu.cli.options;
 
+import static org.hyperledger.besu.ethereum.eth.sync.snapsync.SnapSyncConfiguration.DEFAULT_SNAP_SYNC_SAVE_PRE_MERGE_HEADERS_ONLY_ENABLED;
+
 import org.hyperledger.besu.ethereum.eth.sync.SynchronizerConfiguration;
 import org.hyperledger.besu.ethereum.eth.sync.snapsync.ImmutableSnapSyncConfiguration;
 import org.hyperledger.besu.ethereum.eth.sync.snapsync.SnapSyncConfiguration;
@@ -72,6 +74,8 @@ public class SynchronizerOptions implements CLIOptions<SynchronizerConfiguration
       "--Xsnapsync-synchronizer-bytecode-count-per-request";
   private static final String SNAP_TRIENODE_COUNT_PER_REQUEST_FLAG =
       "--Xsnapsync-synchronizer-trienode-count-per-request";
+  private static final String SNAP_TRANSACTION_INDEXING_ENABLED_FLAG =
+      "--Xsnapsync-synchronizer-transaction-indexing-enabled";
 
   private static final String SNAP_FLAT_ACCOUNT_HEALED_COUNT_PER_REQUEST_FLAG =
       "--Xsnapsync-synchronizer-flat-account-healed-count-per-request";
@@ -84,6 +88,9 @@ public class SynchronizerOptions implements CLIOptions<SynchronizerConfiguration
   private static final String CHECKPOINT_POST_MERGE_FLAG = "--Xcheckpoint-post-merge-enabled";
 
   private static final String SNAP_SYNC_BFT_ENABLED_FLAG = "--Xsnapsync-bft-enabled";
+
+  private static final String SNAP_SYNC_SAVE_PRE_MERGE_HEADERS_ONLY_FLAG =
+      "--Xsnapsync-synchronizer-pre-merge-headers-only-enabled";
 
   /**
    * Parse block propagation range.
@@ -304,12 +311,15 @@ public class SynchronizerOptions implements CLIOptions<SynchronizerConfiguration
   private Boolean checkpointPostMergeSyncEnabled =
       SynchronizerConfiguration.DEFAULT_CHECKPOINT_POST_MERGE_ENABLED;
 
+  // TODO --Xsnapsync-bft-enabled is deprecated,
+  // remove in a future release
   @CommandLine.Option(
-      names = SNAP_SYNC_BFT_ENABLED_FLAG,
+      names = SNAP_SYNC_BFT_ENABLED_FLAG, // deprecated
       hidden = true,
       paramLabel = "<Boolean>",
       arity = "0..1",
-      description = "Snap sync enabled for BFT chains (default: ${DEFAULT-VALUE})")
+      description =
+          "This option is now deprecated and ignored, and will be removed in future release. Snap sync for BFT is supported by default.")
   private Boolean snapsyncBftEnabled = SnapSyncConfiguration.DEFAULT_SNAP_SYNC_BFT_ENABLED;
 
   @CommandLine.Option(
@@ -318,6 +328,25 @@ public class SynchronizerOptions implements CLIOptions<SynchronizerConfiguration
       description =
           "Temporary feature toggle to enable using the new peertask system (default: ${DEFAULT-VALUE})")
   private final Boolean isPeerTaskSystemEnabled = false;
+
+  @CommandLine.Option(
+      names = SNAP_TRANSACTION_INDEXING_ENABLED_FLAG,
+      hidden = true,
+      paramLabel = "<Boolean>",
+      arity = "0..1",
+      description = "Enable transaction indexing during snap sync. (default: ${DEFAULT-VALUE})")
+  private Boolean snapTransactionIndexingEnabled =
+      SnapSyncConfiguration.DEFAULT_SNAP_SYNC_TRANSACTION_INDEXING_ENABLED;
+
+  @CommandLine.Option(
+      names = SNAP_SYNC_SAVE_PRE_MERGE_HEADERS_ONLY_FLAG,
+      paramLabel = "<Boolean>",
+      hidden = true,
+      arity = "0..1",
+      description =
+          "Enable snap sync downloader to save only headers for blocks before the merge. (default: ${DEFAULT-VALUE})")
+  private Boolean snapSyncSavePreMergeHeadersOnlyEnabled =
+      DEFAULT_SNAP_SYNC_SAVE_PRE_MERGE_HEADERS_ONLY_ENABLED;
 
   private SynchronizerOptions() {}
 
@@ -398,7 +427,10 @@ public class SynchronizerOptions implements CLIOptions<SynchronizerConfiguration
         config.getSnapSyncConfiguration().getLocalFlatStorageCountToHealPerRequest();
     options.checkpointPostMergeSyncEnabled = config.isCheckpointPostMergeEnabled();
     options.snapsyncServerEnabled = config.getSnapSyncConfiguration().isSnapServerEnabled();
-    options.snapsyncBftEnabled = config.getSnapSyncConfiguration().isSnapSyncBftEnabled();
+    options.snapTransactionIndexingEnabled =
+        config.getSnapSyncConfiguration().isSnapSyncTransactionIndexingEnabled();
+    options.snapSyncSavePreMergeHeadersOnlyEnabled =
+        config.isSnapSyncSavePreMergeHeadersOnlyEnabled();
     return options;
   }
 
@@ -431,10 +463,11 @@ public class SynchronizerOptions implements CLIOptions<SynchronizerConfiguration
             .localFlatAccountCountToHealPerRequest(snapsyncFlatAccountHealedCountPerRequest)
             .localFlatStorageCountToHealPerRequest(snapsyncFlatStorageHealedCountPerRequest)
             .isSnapServerEnabled(snapsyncServerEnabled)
-            .isSnapSyncBftEnabled(snapsyncBftEnabled)
+            .isSnapSyncTransactionIndexingEnabled(snapTransactionIndexingEnabled)
             .build());
     builder.checkpointPostMergeEnabled(checkpointPostMergeSyncEnabled);
     builder.isPeerTaskSystemEnabled(isPeerTaskSystemEnabled);
+    builder.snapSyncSavePreMergeHeadersOnlyEnabled(snapSyncSavePreMergeHeadersOnlyEnabled);
     return builder;
   }
 
@@ -490,8 +523,10 @@ public class SynchronizerOptions implements CLIOptions<SynchronizerConfiguration
             OptionParser.format(snapsyncFlatStorageHealedCountPerRequest),
             SNAP_SERVER_ENABLED_FLAG,
             OptionParser.format(snapsyncServerEnabled),
-            SNAP_SYNC_BFT_ENABLED_FLAG,
-            OptionParser.format(snapsyncBftEnabled));
+            SNAP_TRANSACTION_INDEXING_ENABLED_FLAG,
+            OptionParser.format(snapTransactionIndexingEnabled),
+            SNAP_SYNC_SAVE_PRE_MERGE_HEADERS_ONLY_FLAG,
+            OptionParser.format(snapSyncSavePreMergeHeadersOnlyEnabled));
     return value;
   }
 }

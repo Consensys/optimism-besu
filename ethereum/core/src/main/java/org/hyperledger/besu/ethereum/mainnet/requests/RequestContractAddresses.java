@@ -17,19 +17,14 @@ package org.hyperledger.besu.ethereum.mainnet.requests;
 import org.hyperledger.besu.config.GenesisConfigOptions;
 import org.hyperledger.besu.datatypes.Address;
 
+import java.util.NoSuchElementException;
+
 public class RequestContractAddresses {
   private final Address withdrawalRequestContractAddress;
   private final Address depositContractAddress;
   private final Address consolidationRequestContractAddress;
 
-  public static final Address DEFAULT_WITHDRAWAL_REQUEST_CONTRACT_ADDRESS =
-      Address.fromHexString("0x09FC772D0857550724B07B850A4323F39112AAAA");
-  public static final Address DEFAULT_CONSOLIDATION_REQUEST_CONTRACT_ADDRESS =
-      Address.fromHexString("0x01ABEA29659E5E97C95107F20BB753CD3E09BBBB");
-  public static final Address DEFAULT_DEPOSIT_CONTRACT_ADDRESS =
-      Address.fromHexString("0x00000000219ab540356cbb839cbe05303d7705fa");
-
-  public RequestContractAddresses(
+  private RequestContractAddresses(
       final Address withdrawalRequestContractAddress,
       final Address depositContractAddress,
       final Address consolidationRequestContractAddress) {
@@ -43,11 +38,17 @@ public class RequestContractAddresses {
     return new RequestContractAddresses(
         genesisConfigOptions
             .getWithdrawalRequestContractAddress()
-            .orElse(DEFAULT_WITHDRAWAL_REQUEST_CONTRACT_ADDRESS),
-        genesisConfigOptions.getDepositContractAddress().orElse(DEFAULT_DEPOSIT_CONTRACT_ADDRESS),
+            .orElseThrow(
+                () -> new NoSuchElementException("Withdrawal Request Contract Address not found")),
+        genesisConfigOptions
+            .getDepositContractAddress()
+            .orElseThrow(() -> new NoSuchElementException("Deposit Contract Address not found")),
         genesisConfigOptions
             .getConsolidationRequestContractAddress()
-            .orElse(DEFAULT_CONSOLIDATION_REQUEST_CONTRACT_ADDRESS));
+            .orElseThrow(
+                () ->
+                    new NoSuchElementException(
+                        "Consolidation Request Contract Address not found")));
   }
 
   public Address getWithdrawalRequestContractAddress() {

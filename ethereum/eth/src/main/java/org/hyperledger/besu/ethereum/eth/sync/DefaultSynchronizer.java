@@ -36,7 +36,7 @@ import org.hyperledger.besu.ethereum.eth.sync.state.PendingBlocksManager;
 import org.hyperledger.besu.ethereum.eth.sync.state.SyncState;
 import org.hyperledger.besu.ethereum.mainnet.ProtocolSchedule;
 import org.hyperledger.besu.ethereum.storage.StorageProvider;
-import org.hyperledger.besu.ethereum.trie.diffbased.bonsai.BonsaiWorldStateProvider;
+import org.hyperledger.besu.ethereum.trie.pathbased.bonsai.BonsaiWorldStateProvider;
 import org.hyperledger.besu.ethereum.worldstate.WorldStateStorageCoordinator;
 import org.hyperledger.besu.metrics.BesuMetricCategory;
 import org.hyperledger.besu.metrics.SyncDurationMetrics;
@@ -99,6 +99,7 @@ public class DefaultSynchronizer implements Synchronizer, UnverifiedForkchoiceLi
     ChainHeadTracker.trackChainHeadForPeers(
         ethContext,
         protocolSchedule,
+        syncConfig,
         protocolContext.getBlockchain(),
         this::calculateTrailingPeerRequirements,
         metricsSystem);
@@ -136,6 +137,7 @@ public class DefaultSynchronizer implements Synchronizer, UnverifiedForkchoiceLi
                     syncState,
                     metricsSystem,
                     terminationCondition,
+                    peerTaskExecutor,
                     syncDurationMetrics));
 
     if (SyncMode.FAST.equals(syncConfig.getSyncMode())) {
@@ -149,7 +151,6 @@ public class DefaultSynchronizer implements Synchronizer, UnverifiedForkchoiceLi
                   protocolContext,
                   metricsSystem,
                   ethContext,
-                  peerTaskExecutor,
                   worldStateStorageCoordinator,
                   syncState,
                   clock,
@@ -166,7 +167,6 @@ public class DefaultSynchronizer implements Synchronizer, UnverifiedForkchoiceLi
                   protocolContext,
                   metricsSystem,
                   ethContext,
-                  peerTaskExecutor,
                   worldStateStorageCoordinator,
                   syncState,
                   clock,
@@ -183,7 +183,6 @@ public class DefaultSynchronizer implements Synchronizer, UnverifiedForkchoiceLi
                   protocolContext,
                   metricsSystem,
                   ethContext,
-                  peerTaskExecutor,
                   worldStateStorageCoordinator,
                   syncState,
                   clock,

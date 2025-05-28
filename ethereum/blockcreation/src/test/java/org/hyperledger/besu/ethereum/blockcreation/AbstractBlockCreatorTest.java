@@ -15,7 +15,6 @@
 package org.hyperledger.besu.ethereum.blockcreation;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.hyperledger.besu.ethereum.mainnet.requests.RequestContractAddresses.DEFAULT_DEPOSIT_CONTRACT_ADDRESS;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
@@ -24,7 +23,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import org.hyperledger.besu.config.GenesisConfigFile;
+import org.hyperledger.besu.config.GenesisConfig;
 import org.hyperledger.besu.crypto.KeyPair;
 import org.hyperledger.besu.crypto.SECPPrivateKey;
 import org.hyperledger.besu.crypto.SignatureAlgorithm;
@@ -77,7 +76,8 @@ import org.hyperledger.besu.ethereum.mainnet.TransactionValidatorFactory;
 import org.hyperledger.besu.ethereum.mainnet.ValidationResult;
 import org.hyperledger.besu.ethereum.mainnet.WithdrawalsProcessor;
 import org.hyperledger.besu.ethereum.mainnet.requests.DepositRequestProcessor;
-import org.hyperledger.besu.ethereum.mainnet.requests.ProcessRequestContext;
+import org.hyperledger.besu.ethereum.mainnet.requests.RequestProcessingContext;
+import org.hyperledger.besu.ethereum.mainnet.systemcall.BlockProcessingContext;
 import org.hyperledger.besu.ethereum.transaction.TransactionInvalidReason;
 import org.hyperledger.besu.evm.account.Account;
 import org.hyperledger.besu.evm.internal.EvmConfiguration;
@@ -117,6 +117,9 @@ abstract class AbstractBlockCreatorTest {
   @Mock private WithdrawalsProcessor withdrawalsProcessor;
   protected EthScheduler ethScheduler = new DeterministicEthScheduler();
 
+  public static final Address DEFAULT_DEPOSIT_CONTRACT_ADDRESS =
+      Address.fromHexString("0x00000000219ab540356cbb839cbe05303d7705fa");
+
   @Test
   void findDepositRequestsFromReceipts() {
     BlockDataGenerator blockDataGenerator = new BlockDataGenerator();
@@ -142,7 +145,9 @@ abstract class AbstractBlockCreatorTest {
 
     var depositRequestsFromReceipts =
         new DepositRequestProcessor(DEFAULT_DEPOSIT_CONTRACT_ADDRESS)
-            .process(new ProcessRequestContext(null, null, null, receipts, null, null));
+            .process(
+                new RequestProcessingContext(
+                    new BlockProcessingContext(null, null, null, null, null), receipts));
     assertThat(depositRequestsFromReceipts).isEqualTo(expectedDepositRequest);
   }
 
@@ -298,12 +303,12 @@ abstract class AbstractBlockCreatorTest {
 
   private CreateOn createBlockCreator(final ProtocolSpecAdapters protocolSpecAdapters) {
 
-    final var genesisConfigFile = GenesisConfigFile.fromResource("/block-creation-genesis.json");
+    final var genesisConfig = GenesisConfig.fromResource("/block-creation-genesis.json");
     final ExecutionContextTestFixture executionContextTestFixture =
-        ExecutionContextTestFixture.builder(genesisConfigFile)
+        ExecutionContextTestFixture.builder(genesisConfig)
             .protocolSchedule(
                 new ProtocolScheduleBuilder(
-                        genesisConfigFile.getConfigOptions(),
+                        genesisConfig.getConfigOptions(),
                         Optional.of(BigInteger.valueOf(42)),
                         protocolSpecAdapters,
                         PrivacyParameters.DEFAULT,
@@ -356,7 +361,7 @@ abstract class AbstractBlockCreatorTest {
     return new CreateOn(
         new TestBlockCreator(
             miningConfiguration,
-            __ -> Address.ZERO,
+            (__, ___) -> Address.ZERO,
             __ -> Bytes.fromHexString("deadbeef"),
             transactionPool,
             executionContextTestFixture.getProtocolContext(),

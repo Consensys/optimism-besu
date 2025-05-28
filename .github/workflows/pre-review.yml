@@ -1,6 +1,7 @@
 name: pre-review
 
 on:
+  merge_group:
   pull_request:
     branches:
       - main
@@ -13,7 +14,7 @@ concurrency:
 
 env:
   GRADLE_OPTS: "-Xmx6g -Dorg.gradle.parallel=true"
-  total-runners: 10
+  total-runners: 14
 
 jobs:
   repolint:
@@ -34,7 +35,7 @@ jobs:
       - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
         with:
           ref: ${{ github.event.pull_request.head.sha || github.ref }}
-      - uses: gradle/wrapper-validation-action@56b90f209b02bf6d1deae490e9ef18b21a389cd4
+      - uses: gradle/actions/wrapper-validation@94baf225fe0a508e581a564467443d0e2379123b
   spotless:
     runs-on: ubuntu-22.04
     steps:
@@ -84,7 +85,7 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        runner_index: [0,1,2,3,4,5,6,7,8,9]
+        runner_index: [0,1,2,3,4,5,6,7,8,9,10,11,12,13]
     steps:
       - name: Checkout Repo
         uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
