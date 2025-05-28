@@ -1676,8 +1676,7 @@ public class BesuCommand implements DefaultCommandValues, Runnable {
       effectiveGenesisFile = OptimismGenesisConfig.fromResource(network.getGenesisFile());
     } else {
       effectiveGenesisFile =
-          GenesisConfig.fromResource(
-              Optional.ofNullable(network).orElse(MAINNET).getGenesisFile());
+          GenesisConfig.fromResource(Optional.ofNullable(network).orElse(MAINNET).getGenesisFile());
     }
     return effectiveGenesisFile.withOverrides(genesisConfigOverrides);
   }

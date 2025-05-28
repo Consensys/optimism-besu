@@ -851,11 +851,12 @@ public abstract class BesuControllerBuilder implements MiningParameterOverrides 
                 GenesisState.fromStorage(genesisStateRoot, genesisConfig, protocolSchedule))
         .orElseGet(
             () -> {
-              if (genesisConfig instanceof  OptimismGenesisConfig opGenesisConfig) {
+              if (genesisConfig instanceof OptimismGenesisConfig opGenesisConfig) {
                 return OptimismGenesisState.fromConfig(
                     dataStorageConfiguration, opGenesisConfig, protocolSchedule);
               } else {
-                return GenesisState.fromConfig(dataStorageConfiguration, genesisConfig, protocolSchedule);
+                return GenesisState.fromConfig(
+                    dataStorageConfiguration, genesisConfig, protocolSchedule);
               }
             });
   }

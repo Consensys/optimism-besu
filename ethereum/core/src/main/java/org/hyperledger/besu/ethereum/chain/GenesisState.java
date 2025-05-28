@@ -52,7 +52,7 @@ import org.apache.tuweni.bytes.Bytes32;
 public class GenesisState {
 
   protected final Block block;
-  protected final GenesisConfig genesisConfigFile;
+  protected final GenesisConfig genesisConfig;
 
   protected GenesisState(final Block block, final GenesisConfig genesisConfig) {
     this.block = block;
@@ -178,8 +178,7 @@ public class GenesisState {
   }
 
   protected static Hash calculateGenesisStateRoot(
-      final DataStorageConfiguration dataStorageConfiguration,
-      final GenesisConfig genesisConfig) {
+      final DataStorageConfiguration dataStorageConfiguration, final GenesisConfig genesisConfig) {
     try (var worldState = createGenesisWorldState(dataStorageConfiguration)) {
       writeAccountsTo(worldState, genesisConfig.streamAllocations(), null);
       return worldState.rootHash();

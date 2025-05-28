@@ -51,20 +51,15 @@ public abstract class PendingTransaction
   public static final Byte MAX_SCORE = Byte.MAX_VALUE;
   public static final int NOT_INITIALIZED = -1;
 
-  static final int DEPOSIT_SIZE = 872;
-  static final int SOURCE_HASH_SIZE = 32;
-  static final int IS_SYSTEM_TX_SIZE = 1;
-  static final int MINT_SIZE = 32;
-
   private static final AtomicLong TRANSACTIONS_ADDED = new AtomicLong();
-  private final Transaction transaction;
-  private final long addedAt;
-  private final long sequence; // Allows prioritization based on order transactions are added
-  private volatile byte score;
+  protected final Transaction transaction;
+  protected final long addedAt;
+  protected final long sequence; // Allows prioritization based on order transactions are added
+  protected volatile byte score;
 
   private int memorySize = NOT_INITIALIZED;
 
-  private PendingTransaction(
+  protected PendingTransaction(
       final Transaction transaction, final byte score, final long addedAt, final long sequence) {
     this.transaction = transaction;
     this.addedAt = addedAt;
@@ -157,26 +152,27 @@ public abstract class PendingTransaction
 
   public abstract PendingTransaction detachedCopy();
 
-  private int computeMemorySize() {
+  protected int computeMemorySize() {
     return switch (transaction.getType()) {
           case FRONTIER -> computeFrontierMemorySize();
           case ACCESS_LIST -> computeAccessListMemorySize();
           case EIP1559 -> computeEIP1559MemorySize();
           case BLOB -> computeBlobMemorySize();
           case DELEGATE_CODE -> computeDelegateCodeMemorySize();
-          case OPTIMISM_DEPOSIT -> computeOpDepositMemorySize();
+          case OPTIMISM_DEPOSIT ->
+              throw new UnsupportedOperationException("not support optimism stack operation");
         }
         + PENDING_TRANSACTION_SHALLOW_SIZE;
   }
 
-  private int computeFrontierMemorySize() {
+  protected int computeFrontierMemorySize() {
     return FRONTIER_AND_ACCESS_LIST_SHALLOW_SIZE
         + computePayloadMemorySize()
         + computeToMemorySize()
         + computeChainIdMemorySize();
   }
 
-  private int computeAccessListMemorySize() {
+  protected int computeAccessListMemorySize() {
     return FRONTIER_AND_ACCESS_LIST_SHALLOW_SIZE
         + computePayloadMemorySize()
         + computeToMemorySize()
@@ -184,7 +180,7 @@ public abstract class PendingTransaction
         + computeAccessListEntriesMemorySize();
   }
 
-  private int computeEIP1559MemorySize() {
+  protected int computeEIP1559MemorySize() {
     return EIP1559_AND_EIP4844_SHALLOW_SIZE
         + computePayloadMemorySize()
         + computeToMemorySize()
@@ -192,13 +188,13 @@ public abstract class PendingTransaction
         + computeAccessListEntriesMemorySize();
   }
 
-  private int computeBlobMemorySize() {
+  protected int computeBlobMemorySize() {
     return computeEIP1559MemorySize()
         + OPTIONAL_SHALLOW_SIZE // for the versionedHashes field
         + computeBlobWithCommitmentsMemorySize();
   }
 
-  private int computeDelegateCodeMemorySize() {
+  protected int computeDelegateCodeMemorySize() {
     return computeEIP1559MemorySize() + computeCodeDelegationListMemorySize();
   }
 
@@ -213,13 +209,13 @@ public abstract class PendingTransaction
         + (BLOB_SIZE * blobCount);
   }
 
-  private int computePayloadMemorySize() {
+  protected int computePayloadMemorySize() {
     return !transaction.getPayload().isEmpty()
         ? PAYLOAD_SHALLOW_SIZE + transaction.getPayload().size()
         : 0;
   }
 
-  private int computeToMemorySize() {
+  protected int computeToMemorySize() {
     if (transaction.getTo().isPresent()) {
       return OPTIONAL_TO_SIZE;
     }
@@ -258,16 +254,6 @@ public abstract class PendingTransaction
               return totalSize;
             })
         .orElse(0);
-  }
-
-  /** correct memory size for OptimismDeposit transactions. */
-  private int computeOpDepositMemorySize() {
-    return DEPOSIT_SIZE
-        + computePayloadMemorySize()
-        + computeToMemorySize()
-        + SOURCE_HASH_SIZE
-        + IS_SYSTEM_TX_SIZE
-        + MINT_SIZE;
   }
 
   public static List<Transaction> toTransactionList(

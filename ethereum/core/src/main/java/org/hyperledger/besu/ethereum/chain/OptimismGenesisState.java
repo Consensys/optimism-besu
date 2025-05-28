@@ -14,8 +14,8 @@
  */
 package org.hyperledger.besu.ethereum.chain;
 
-import org.hyperledger.besu.config.GenesisConfigFile;
-import org.hyperledger.besu.config.OpGenesisConfigFile;
+import org.hyperledger.besu.config.GenesisConfig;
+import org.hyperledger.besu.config.OptimismGenesisConfig;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.ethereum.core.Block;
 import org.hyperledger.besu.ethereum.mainnet.ProtocolSchedule;
@@ -27,7 +27,7 @@ import com.google.common.annotations.VisibleForTesting;
 
 public class OptimismGenesisState extends GenesisState {
 
-  OptimismGenesisState(final Block block, final GenesisConfigFile genesisConfigFile) {
+  OptimismGenesisState(final Block block, final GenesisConfig genesisConfigFile) {
     super(block, genesisConfigFile);
   }
 
@@ -40,7 +40,7 @@ public class OptimismGenesisState extends GenesisState {
    */
   public static OptimismGenesisState fromJson(
       final String json, final ProtocolSchedule protocolSchedule) {
-    return fromConfig(OpGenesisConfigFile.fromConfig(json), protocolSchedule);
+    return fromConfig(OptimismGenesisConfig.fromConfig(json), protocolSchedule);
   }
 
   /**
@@ -58,7 +58,7 @@ public class OptimismGenesisState extends GenesisState {
       final URL jsonSource,
       final ProtocolSchedule protocolSchedule) {
     return fromConfig(
-        dataStorageConfiguration, OpGenesisConfigFile.fromConfig(jsonSource), protocolSchedule);
+        dataStorageConfiguration, OptimismGenesisConfig.fromConfig(jsonSource), protocolSchedule);
   }
 
   /**
@@ -69,7 +69,7 @@ public class OptimismGenesisState extends GenesisState {
    * @return A new {@link GenesisState}.
    */
   public static OptimismGenesisState fromConfig(
-      final OpGenesisConfigFile config, final ProtocolSchedule protocolSchedule) {
+      final OptimismGenesisConfig config, final ProtocolSchedule protocolSchedule) {
     return OptimismGenesisState.fromConfig(
         DataStorageConfiguration.DEFAULT_CONFIG, config, protocolSchedule);
   }
@@ -79,13 +79,13 @@ public class OptimismGenesisState extends GenesisState {
    *
    * @param dataStorageConfiguration A {@link DataStorageConfiguration} describing the storage
    *     configuration
-   * @param genesisConfigFile A {@link GenesisConfigFile} describing the genesis block.
+   * @param genesisConfigFile A {@link OptimismGenesisConfig} describing the genesis block.
    * @param protocolSchedule A protocol Schedule associated with
    * @return A new {@link GenesisState}.
    */
   public static OptimismGenesisState fromConfig(
       final DataStorageConfiguration dataStorageConfiguration,
-      final OpGenesisConfigFile genesisConfigFile,
+      final OptimismGenesisConfig genesisConfigFile,
       final ProtocolSchedule protocolSchedule) {
     // for optimism mainnet, it will modify genesis state root.
     final Hash genesisStateRoot;

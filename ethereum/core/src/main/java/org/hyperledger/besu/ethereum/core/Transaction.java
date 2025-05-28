@@ -182,7 +182,7 @@ public class Transaction
    *     <p>The {@code chainId} must be greater than 0 to be applied to a specific chain; otherwise
    *     it will default to any chain.
    */
-  Transaction(
+  protected Transaction(
       final boolean forCopy,
       final TransactionType transactionType,
       final long nonce,
@@ -1283,7 +1283,7 @@ public class Transaction
     protected Optional<BigInteger> chainId = Optional.empty();
     protected Optional<BigInteger> v = Optional.empty();
     protected List<VersionedHash> versionedHashes = null;
-    private BlobsWithCommitments blobsWithCommitments;
+    protected BlobsWithCommitments blobsWithCommitments;
     protected Optional<List<CodeDelegation>> codeDelegationAuthorizations = Optional.empty();
     protected Bytes rawRlp = null;
 
