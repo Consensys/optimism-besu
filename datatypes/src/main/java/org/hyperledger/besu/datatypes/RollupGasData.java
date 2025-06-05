@@ -24,7 +24,7 @@ package org.hyperledger.besu.datatypes;
 @SuppressWarnings("UnusedVariable")
 public record RollupGasData(long zeroes, long ones, long fastLzSize) {
 
-  private static final RollupGasData empty = new RollupGasData(0L, 0L, 0L);
+  public static final RollupGasData EMPTY = new RollupGasData(0L, 0L, 0L);
 
   /**
    * Get the number of zeroes.

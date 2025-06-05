@@ -29,7 +29,7 @@ import com.google.common.base.Suppliers;
 
 public class TransactionValidatorFactory {
 
-  volatile Supplier<TransactionValidator> transactionValidatorSupplier;
+  protected volatile Supplier<TransactionValidator> transactionValidatorSupplier;
 
   TransactionValidatorFactory() {}
 

@@ -47,20 +47,15 @@ public abstract class PendingTransaction
   static final int BLOBS_WITH_COMMITMENTS_SIZE = 40;
   static final int PENDING_TRANSACTION_MEMORY_SIZE = 40;
 
-  static final int DEPOSIT_SIZE = 872;
-  static final int SOURCE_HASH_SIZE = 32;
-  static final int IS_SYSTEM_TX_SIZE = 1;
-  static final int MINT_SIZE = 32;
-
   private static final AtomicLong TRANSACTIONS_ADDED = new AtomicLong();
-  private final Transaction transaction;
-  private final long addedAt;
-  private final long sequence; // Allows prioritization based on order transactions are added
-  private volatile byte score;
+  protected final Transaction transaction;
+  protected final long addedAt;
+  protected final long sequence; // Allows prioritization based on order transactions are added
+  protected volatile byte score;
 
   private int memorySize = NOT_INITIALIZED;
 
-  private PendingTransaction(
+  protected PendingTransaction(
       final Transaction transaction, final long addedAt, final long sequence, final byte score) {
     this.transaction = transaction;
     this.addedAt = addedAt;
@@ -147,36 +142,26 @@ public abstract class PendingTransaction
 
   public abstract PendingTransaction detachedCopy();
 
-  private int computeMemorySize() {
+  protected int computeMemorySize() {
     return switch (transaction.getType()) {
           case FRONTIER -> computeFrontierMemorySize();
           case ACCESS_LIST -> computeAccessListMemorySize();
           case EIP1559 -> computeEIP1559MemorySize();
           case BLOB -> computeBlobMemorySize();
           case DELEGATE_CODE -> computeSetCodeMemorySize();
-          case OPTIMISM_DEPOSIT -> computeOpDepositMemorySize();
+          case OPTIMISM_DEPOSIT -> 0;
         }
         + PENDING_TRANSACTION_MEMORY_SIZE;
   }
 
-  /** correct memory size for OptimismDeposit transactions. */
-  private int computeOpDepositMemorySize() {
-    return DEPOSIT_SIZE
-        + computePayloadMemorySize()
-        + computeToMemorySize()
-        + SOURCE_HASH_SIZE
-        + IS_SYSTEM_TX_SIZE
-        + MINT_SIZE;
-  }
-
-  private int computeFrontierMemorySize() {
+  protected int computeFrontierMemorySize() {
     return FRONTIER_AND_ACCESS_LIST_SHALLOW_MEMORY_SIZE
         + computePayloadMemorySize()
         + computeToMemorySize()
         + computeChainIdMemorySize();
   }
 
-  private int computeAccessListMemorySize() {
+  protected int computeAccessListMemorySize() {
     return FRONTIER_AND_ACCESS_LIST_SHALLOW_MEMORY_SIZE
         + computePayloadMemorySize()
         + computeToMemorySize()
@@ -184,7 +169,7 @@ public abstract class PendingTransaction
         + computeAccessListEntriesMemorySize();
   }
 
-  private int computeEIP1559MemorySize() {
+  protected int computeEIP1559MemorySize() {
     return EIP1559_AND_EIP4844_SHALLOW_MEMORY_SIZE
         + computePayloadMemorySize()
         + computeToMemorySize()
@@ -192,17 +177,17 @@ public abstract class PendingTransaction
         + computeAccessListEntriesMemorySize();
   }
 
-  private int computeBlobMemorySize() {
+  protected int computeBlobMemorySize() {
     return computeEIP1559MemorySize()
         + BASE_OPTIONAL_SIZE // for the versionedHashes field
         + computeBlobWithCommitmentsMemorySize();
   }
 
-  private int computeSetCodeMemorySize() {
+  protected int computeSetCodeMemorySize() {
     return 0;
   }
 
-  private int computeBlobWithCommitmentsMemorySize() {
+  protected int computeBlobWithCommitmentsMemorySize() {
     final int blobCount = transaction.getBlobCount();
 
     return BASE_OPTIONAL_SIZE
@@ -213,13 +198,13 @@ public abstract class PendingTransaction
         + (BLOB_SIZE * blobCount);
   }
 
-  private int computePayloadMemorySize() {
+  protected int computePayloadMemorySize() {
     return transaction.getPayload().size() > 0
         ? PAYLOAD_BASE_MEMORY_SIZE + transaction.getPayload().size()
         : 0;
   }
 
-  private int computeToMemorySize() {
+  protected int computeToMemorySize() {
     if (transaction.getTo().isPresent()) {
       return OPTIONAL_TO_MEMORY_SIZE;
     }

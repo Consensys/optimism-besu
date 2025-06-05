@@ -163,7 +163,7 @@ public class Transaction
    *     <p>The {@code chainId} must be greater than 0 to be applied to a specific chain; otherwise
    *     it will default to any chain.
    */
-  Transaction(
+  protected Transaction(
       final boolean forCopy,
       final TransactionType transactionType,
       final long nonce,
