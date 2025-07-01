@@ -1,5 +1,5 @@
 > [!IMPORTANT]  
-> This repository has been archived due to development being paused.
+> The op-besu repository has been archived due to development being paused.
 
 # Besu Ethereum Client
  [![CircleCI](https://circleci.com/gh/hyperledger/besu/tree/main.svg?style=svg)](https://circleci.com/gh/hyperledger/besu/tree/main)
