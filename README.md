@@ -1,3 +1,6 @@
+> [!IMPORTANT]  
+> This repository has been archived due to development being paused.
+
 # Besu Ethereum Client
  [![CircleCI](https://circleci.com/gh/hyperledger/besu/tree/main.svg?style=svg)](https://circleci.com/gh/hyperledger/besu/tree/main)
  [![Documentation](https://img.shields.io/github/actions/workflow/status/hyperledger/besu-docs/publish-main-docs.yml?branch=main&label=docs)](https://github.com/hyperledger/besu-docs/actions/workflows/publish-main-docs.yml)
